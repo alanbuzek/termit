@@ -293,6 +293,12 @@
             <version>3.5.1</version>
             <scope>test</scope>
         </dependency>
+
+        <dependency>
+            <groupId>org.springdoc</groupId>
+            <artifactId>springdoc-openapi-ui</artifactId>
+            <version>1.5.3</version>
+        </dependency>
     </dependencies>
 
     <profiles>
@@ -550,6 +556,25 @@
                         </configuration>
                     </execution>
                 </executions>
+            </plugin>
+
+            <plugin>
+                <groupId>org.springdoc</groupId>
+                <artifactId>springdoc-openapi-maven-plugin</artifactId>
+                <version>1.1</version>
+                <executions>
+                    <execution>
+                        <phase>integration-test</phase>
+                        <goals>
+                            <goal>generate</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <apiDocsUrl>http://localhost:8080/termit/rest/v3/api-docs</apiDocsUrl>
+                    <outputFileName>openapi.json</outputFileName>
+                    <outputDir>${project.build.directory}</outputDir>
+                </configuration>
             </plugin>
         </plugins>
     </build>

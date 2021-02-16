@@ -26,6 +26,12 @@ import cz.cvut.kbss.termit.util.AdjustedUriTemplateProxyServlet;
 import cz.cvut.kbss.termit.util.ConfigParam;
 import cz.cvut.kbss.termit.util.json.MultilingualStringDeserializer;
 import cz.cvut.kbss.termit.util.json.MultilingualStringSerializer;
+import org.springdoc.core.SpringDocConfigProperties;
+import org.springdoc.core.SpringDocConfiguration;
+import org.springdoc.webmvc.core.MultipleOpenApiSupportConfiguration;
+import org.springdoc.webmvc.core.SpringDocWebMvcConfiguration;
+import org.springdoc.webmvc.ui.SwaggerConfig;
+import org.springframework.boot.autoconfigure.jackson.JacksonAutoConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
@@ -37,9 +43,7 @@ import org.springframework.http.converter.json.MappingJackson2HttpMessageConvert
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.web.multipart.MultipartResolver;
 import org.springframework.web.multipart.support.StandardServletMultipartResolver;
-import org.springframework.web.servlet.config.annotation.ContentNegotiationConfigurer;
 import org.springframework.web.servlet.config.annotation.EnableWebMvc;
-import org.springframework.web.servlet.config.annotation.PathMatchConfigurer;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 import org.springframework.web.servlet.handler.SimpleUrlHandlerMapping;
 import org.springframework.web.servlet.mvc.ServletWrappingController;
@@ -54,7 +58,12 @@ import static cz.cvut.kbss.termit.util.ConfigParam.REPOSITORY_URL;
 @Configuration
 @EnableWebMvc
 @EnableAsync
-@Import({RestConfig.class, SecurityConfig.class})
+@Import({RestConfig.class, SecurityConfig.class, SwaggerConfig.class,
+        org.springdoc.core.SwaggerUiConfigProperties.class, org.springdoc.core.SwaggerUiOAuthProperties.class,
+        SpringDocWebMvcConfiguration.class,
+        MultipleOpenApiSupportConfiguration.class,
+        SpringDocConfiguration.class, SpringDocConfigProperties.class,
+        JacksonAutoConfiguration.class})
 public class WebAppConfig implements WebMvcConfigurer {
 
     private final cz.cvut.kbss.termit.util.Configuration config;
@@ -149,11 +158,11 @@ public class WebAppConfig implements WebMvcConfigurer {
 
     @Override
     public void configureMessageConverters(List<HttpMessageConverter<?>> converters) {
-        converters.add(createJsonLdMessageConverter());
-        converters.add(createDefaultMessageConverter());
         final StringHttpMessageConverter stringConverter = new StringHttpMessageConverter(StandardCharsets.UTF_8);
         converters.add(stringConverter);
         converters.add(new ResourceHttpMessageConverter());
+        converters.add(createJsonLdMessageConverter());
+        converters.add(createDefaultMessageConverter());
     }
 
     private HttpMessageConverter<?> createJsonLdMessageConverter() {
@@ -167,15 +176,5 @@ public class WebAppConfig implements WebMvcConfigurer {
         final MappingJackson2HttpMessageConverter converter = new MappingJackson2HttpMessageConverter();
         converter.setObjectMapper(objectMapper());
         return converter;
-    }
-
-    @Override
-    public void configurePathMatch(PathMatchConfigurer matcher) {
-        matcher.setUseSuffixPatternMatch(false);
-    }
-
-    @Override
-    public void configureContentNegotiation(ContentNegotiationConfigurer configurer) {
-        configurer.favorPathExtension(false);
     }
 }
