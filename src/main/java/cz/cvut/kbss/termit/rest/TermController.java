@@ -7,13 +7,18 @@ import cz.cvut.kbss.termit.exception.NotFoundException;
 import cz.cvut.kbss.termit.exception.TermItException;
 import cz.cvut.kbss.termit.model.Term;
 import cz.cvut.kbss.termit.model.Vocabulary;
+import cz.cvut.kbss.termit.model.assignment.FileOccurrenceTarget;
 import cz.cvut.kbss.termit.model.assignment.TermDefinitionSource;
+import cz.cvut.kbss.termit.model.assignment.TermFileOccurrence;
 import cz.cvut.kbss.termit.model.assignment.TermOccurrence;
 import cz.cvut.kbss.termit.model.changetracking.AbstractChangeRecord;
 import cz.cvut.kbss.termit.model.comment.Comment;
+import cz.cvut.kbss.termit.model.resource.File;
+import cz.cvut.kbss.termit.model.resource.Resource;
 import cz.cvut.kbss.termit.rest.util.RestUtils;
 import cz.cvut.kbss.termit.security.SecurityConstants;
 import cz.cvut.kbss.termit.service.IdentifierResolver;
+import cz.cvut.kbss.termit.service.business.ResourceService;
 import cz.cvut.kbss.termit.service.business.TermService;
 import cz.cvut.kbss.termit.util.Configuration;
 import cz.cvut.kbss.termit.util.Constants;
@@ -46,11 +51,14 @@ public class TermController extends BaseController {
     private static final Logger LOG = LoggerFactory.getLogger(TermController.class);
 
     private final TermService termService;
+    private final ResourceService resourceService;
 
     @Autowired
-    public TermController(IdentifierResolver idResolver, Configuration config, TermService termService) {
+    public TermController(IdentifierResolver idResolver, Configuration config, TermService termService,
+                          ResourceService resourceService) {
         super(idResolver, config);
         this.termService = termService;
+        this.resourceService = resourceService;
     }
 
     private URI getVocabularyUri(Optional<String> namespace, String fragment) {
@@ -394,6 +402,28 @@ public class TermController extends BaseController {
         termService.persistChild(newTerm, parent);
         LOG.debug("Child term {} of parent {} created.", newTerm, parent);
         return ResponseEntity.created(createSubTermLocation(newTerm.getUri(), parentIdFragment)).build();
+    }
+
+    /**
+     * Creates a new term occurrence for a specified term
+     *
+     * @see #createSubTerm(String, String, Optional, Term)
+     */
+    @PostMapping(value = "/terms/{termIdFragment}/occurrences",
+                 produces = {MediaType.APPLICATION_JSON_VALUE, JsonLd.MEDIA_TYPE})
+    @PreAuthorize("hasRole('" + SecurityConstants.ROLE_FULL_USER + "')")
+    public TermOccurrence createTermOccurrence(@PathVariable("termIdFragment") String parentIdFragment,
+                                              @RequestParam(name = QueryParams.NAMESPACE,
+                                                            required = false) String namespace, @RequestParam(required = false) String resourceNormalizedName) {
+        final URI resourceIdentifier = resolveIdentifier(config.getNamespace().getResource(), resourceNormalizedName);
+        Resource resource =  resourceService.findRequired(resourceIdentifier);
+        final URI termUri = idResolver.resolveIdentifier(namespace, parentIdFragment);
+        final FileOccurrenceTarget target = new FileOccurrenceTarget((File) resource);
+        return new TermFileOccurrence(termUri, target);
+    }
+
+    private String resourceNamespace(Optional<String> namespace) {
+        return namespace.orElse(config.getNamespace().getResource());
     }
 
     @GetMapping(value = "/vocabularies/{vocabularyIdFragment}/terms/{termIdFragment}/def-related-target", produces = {

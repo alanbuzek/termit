@@ -19,6 +19,8 @@ package cz.cvut.kbss.termit.service.repository;
 
 import cz.cvut.kbss.termit.exception.NotFoundException;
 import cz.cvut.kbss.termit.model.assignment.TermOccurrence;
+import cz.cvut.kbss.termit.model.assignment.TermWebsiteOccurrence;
+import cz.cvut.kbss.termit.model.resource.Resource;
 import cz.cvut.kbss.termit.persistence.dao.TermOccurrenceDao;
 import cz.cvut.kbss.termit.service.business.TermOccurrenceService;
 import org.slf4j.Logger;
@@ -29,6 +31,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.net.URI;
+import java.util.List;
 import java.util.Objects;
 
 import static cz.cvut.kbss.termit.util.Constants.SCHEDULING_PATTERN;
@@ -74,6 +77,11 @@ public class TermOccurrenceRepositoryService implements TermOccurrenceService {
         Objects.requireNonNull(occurrence);
         LOG.trace("Removing term occurrence {}.", occurrence);
         termOccurrenceDao.remove(occurrence);
+    }
+
+    @Transactional
+    public List<TermWebsiteOccurrence> getAllOccurrencesInResource(Resource resource){
+        return termOccurrenceDao.findAllTargetingWebsite(resource);
     }
 
     /**

@@ -26,6 +26,8 @@ import cz.cvut.kbss.termit.exception.PersistenceException;
 import cz.cvut.kbss.termit.model.Asset;
 import cz.cvut.kbss.termit.model.Term;
 import cz.cvut.kbss.termit.model.assignment.TermOccurrence;
+import cz.cvut.kbss.termit.model.assignment.TermWebsiteOccurrence;
+import cz.cvut.kbss.termit.model.resource.VocabularyMock;
 import cz.cvut.kbss.termit.persistence.dao.util.SparqlResultToTermOccurrenceMapper;
 import cz.cvut.kbss.termit.util.Configuration;
 import cz.cvut.kbss.termit.util.Vocabulary;
@@ -69,7 +71,7 @@ public class TermOccurrenceDao extends BaseDao<TermOccurrence> {
                     "           ?hasEnd ?endPosition ." +
                     "   }" +
                     "}" +
-                    "FILTER (?type = ?fileOccurrence || ?type = ?definitionalOccurrence)" +
+                    "FILTER (?type = ?fileOccurrence || ?type = ?definitionalOccurrence || ?type = ?websiteOccurrence)" +
                     "BIND(EXISTS { ?occ a ?suggestedType . } as ?suggested)" +
                     "} GROUP BY ?occ ?type ?term ?target ?suggested ?selector ?exactMatch ?prefix ?suffix ?startPosition ?endPosition";
 
@@ -135,8 +137,19 @@ public class TermOccurrenceDao extends BaseDao<TermOccurrence> {
                               .setParameter("hasEnd", URI.create(Vocabulary.s_p_ma_koncovou_pozici))
                               .setParameter("fileOccurrence", URI.create(Vocabulary.s_c_souborovy_vyskyt_termu))
                               .setParameter("definitionalOccurrence", URI.create(Vocabulary.s_c_definicni_vyskyt_termu))
+                              .setParameter("websiteOccurrence", URI.create(VocabularyMock.s_c_webovy_vyskyt_termu))
                               .setParameter("suggestedType", URI.create(Vocabulary.s_c_navrzeny_vyskyt_termu));
         return new SparqlResultToTermOccurrenceMapper(target.getUri()).map(query.getResultList());
+    }
+
+    public List<TermWebsiteOccurrence> findAllTargetingWebsite(Asset<?> target) {
+        List<TermWebsiteOccurrence> results =  em.createNativeQuery("select distinct ?x where { \n" +
+                "\t?x a ?websiteOccurrence .\n" +
+                "}", TermWebsiteOccurrence.class)
+                         .setParameter("websiteOccurrence", URI.create(VocabularyMock.s_c_webovy_vyskyt_termu))
+                         .getResultList();
+
+        return results;
     }
 
     /**

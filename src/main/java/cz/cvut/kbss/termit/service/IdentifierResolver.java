@@ -138,6 +138,14 @@ public class IdentifierResolver {
         return URI.create(namespace + normalize(comps));
     }
 
+    public URI generateWebsiteIdentifier(String namespace, String websiteURL) {
+        Objects.requireNonNull(namespace);
+        if (!namespace.endsWith("/") && !namespace.endsWith("#")) {
+            namespace += "/";
+        }
+        return URI.create(namespace + normalize(websiteURL));
+    }
+
     private static boolean isUri(String value) {
         try {
             if (!value.matches("^(https?|ftp|file)://.+")) {

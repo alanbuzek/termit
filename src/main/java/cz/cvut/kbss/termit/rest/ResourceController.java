@@ -21,8 +21,10 @@ import cz.cvut.kbss.jsonld.JsonLd;
 import cz.cvut.kbss.termit.exception.TermItException;
 import cz.cvut.kbss.termit.model.TextAnalysisRecord;
 import cz.cvut.kbss.termit.model.changetracking.AbstractChangeRecord;
+import cz.cvut.kbss.termit.model.resource.Document;
 import cz.cvut.kbss.termit.model.resource.File;
 import cz.cvut.kbss.termit.model.resource.Resource;
+import cz.cvut.kbss.termit.model.resource.Website;
 import cz.cvut.kbss.termit.security.SecurityConstants;
 import cz.cvut.kbss.termit.service.IdentifierResolver;
 import cz.cvut.kbss.termit.service.business.ResourceService;
@@ -155,6 +157,20 @@ public class ResourceController extends BaseController {
         resourceService.addFileToDocument(resourceService.findRequired(identifier), file);
         LOG.debug("File {} successfully added to document {}.", file, identifier);
         return ResponseEntity.created(createFileLocation(file.getUri(), normalizedName)).build();
+    }
+
+    @PostMapping(value = "/{normalizedName}/websites")
+    @PreAuthorize("hasRole('" + SecurityConstants.ROLE_FULL_USER + "')")
+    public ResponseEntity<Void> addWebsiteToDocument(@PathVariable String normalizedName,
+                                                  @RequestParam(name = QueryParams.NAMESPACE,
+                                                                required = false) Optional<String> namespace
+                                                  ,@RequestBody Website website
+    )  {
+        final URI identifier = resolveIdentifier(resourceNamespace(namespace), normalizedName);
+        Document document = (Document) resourceService.findRequired(identifier);
+        website.setDocument(document);
+        resourceService.addWebsiteToDocument(document, website);
+        return ResponseEntity.created(createFileLocation(website.getUri(), normalizedName)).build();
     }
 
     private URI createFileLocation(URI childUri, String parentIdFragment) {

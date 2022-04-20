@@ -347,8 +347,9 @@ public class TermService implements RudService<Term>, ChangeRecordProvider<Term>
         Objects.requireNonNull(term);
         Objects.requireNonNull(owner);
         repositoryService.addRootTermToVocabulary(term, owner);
-        analyzeTermDefinition(term, owner.getUri());
-        vocabularyService.runTextAnalysisOnAllTerms(owner);
+//        analyzeTermDefinition(term, owner.getUri());
+//      TODO: ask about this, whether this needs to be there at all?
+//        vocabularyService.runTextAnalysisOnAllTerms(owner);
     }
 
     /**

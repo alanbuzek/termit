@@ -1,8 +1,11 @@
 package cz.cvut.kbss.termit.service.business;
 
 import cz.cvut.kbss.termit.model.assignment.TermOccurrence;
+import cz.cvut.kbss.termit.model.assignment.TermWebsiteOccurrence;
+import cz.cvut.kbss.termit.model.resource.Resource;
 
 import java.net.URI;
+import java.util.List;
 
 /**
  * Business service for managing {@link TermOccurrence}s.
@@ -42,4 +45,7 @@ public interface TermOccurrenceService {
      * @param occurrence Occurrence to remove
      */
     void remove(TermOccurrence occurrence);
+
+//    TODO: add comment
+    List<TermWebsiteOccurrence> getAllOccurrencesInResource(Resource resource);
 }

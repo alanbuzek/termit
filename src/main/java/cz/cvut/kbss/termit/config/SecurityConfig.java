@@ -109,7 +109,7 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
         // This behavior can be restricted later.
         final CorsConfiguration corsConfiguration = new CorsConfiguration().applyPermitDefaultValues();
         corsConfiguration.setAllowedMethods(Collections.singletonList("*"));
-        corsConfiguration.setAllowedOrigins(Collections.singletonList("*"));
+        corsConfiguration.setAllowedOriginPatterns(Collections.singletonList("*"));
         corsConfiguration.addExposedHeader(HttpHeaders.AUTHORIZATION);
         corsConfiguration.addExposedHeader(HttpHeaders.LOCATION);
         corsConfiguration.addExposedHeader(HttpHeaders.CONTENT_DISPOSITION);

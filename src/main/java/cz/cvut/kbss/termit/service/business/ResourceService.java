@@ -27,6 +27,7 @@ import cz.cvut.kbss.termit.model.changetracking.AbstractChangeRecord;
 import cz.cvut.kbss.termit.model.resource.Document;
 import cz.cvut.kbss.termit.model.resource.File;
 import cz.cvut.kbss.termit.model.resource.Resource;
+import cz.cvut.kbss.termit.model.resource.Website;
 import cz.cvut.kbss.termit.service.changetracking.ChangeRecordProvider;
 import cz.cvut.kbss.termit.service.document.DocumentManager;
 import cz.cvut.kbss.termit.service.document.TextAnalysisService;
@@ -201,6 +202,37 @@ public class ResourceService
         } else {
             update(doc);
         }
+    }
+
+    /**
+     * Adds the specified website to the specified document and persists it.
+     *
+     * @param document Document into which the file should be added
+     * @param website     The file to add and save
+     * @throws UnsupportedAssetOperationException If the specified resource is not a Document
+     */
+    @Transactional
+    public Website addWebsiteToDocument(Resource document, Website website) {
+        Objects.requireNonNull(document);
+        Objects.requireNonNull(website);
+        if (!(document instanceof Document)) {
+            throw new UnsupportedAssetOperationException("Cannot add file to the specified resource " + document);
+        }
+        final Document doc = (Document) document;
+        doc.addWebsite(website);
+        if (doc.getVocabulary() != null) {
+            final Vocabulary vocabulary = vocabularyService.getRequiredReference(doc.getVocabulary());
+            repositoryService.persist(website, vocabulary);
+        } else {
+            repositoryService.persist(website);
+        }
+        if (!getReference(document.getUri()).isPresent()) {
+            repositoryService.persist(document);
+        } else {
+            update(doc);
+        }
+
+        return website;
     }
 
     /**
