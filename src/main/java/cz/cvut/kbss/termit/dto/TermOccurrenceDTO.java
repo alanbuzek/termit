@@ -17,13 +17,16 @@
  */
 package cz.cvut.kbss.termit.dto;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public class TermOccurrenceDTO {
 
     private String selector;
     private Integer start;
     private String exactMatch;
-//    private
-
+    private List<String> extraTypes = new ArrayList<>();
+    private String id;
 
     public TermOccurrenceDTO() {
     }
@@ -50,5 +53,21 @@ public class TermOccurrenceDTO {
 
     public void setExactMatch(String exactMatch) {
         this.exactMatch = exactMatch;
+    }
+
+    public List<String> getExtraTypes() {
+        return extraTypes;
+    }
+
+    public void setExtraTypes(List<String> extraTypes) {
+        this.extraTypes = extraTypes;
+    }
+
+    public String getId() {
+        return id;
+    }
+
+    public void setId(String id) {
+        this.id = id;
     }
 }

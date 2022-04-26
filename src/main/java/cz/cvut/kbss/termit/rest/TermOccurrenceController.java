@@ -2,6 +2,8 @@ package cz.cvut.kbss.termit.rest;
 
 import cz.cvut.kbss.jsonld.JsonLd;
 import cz.cvut.kbss.termit.dto.TermOccurrenceDTO;
+import cz.cvut.kbss.termit.exception.ValidationException;
+import cz.cvut.kbss.termit.model.assignment.TermOccurrence;
 import cz.cvut.kbss.termit.model.assignment.TermWebsiteOccurrence;
 import cz.cvut.kbss.termit.model.assignment.WebsiteOccurrenceTarget;
 import cz.cvut.kbss.termit.model.resource.Resource;
@@ -18,7 +20,6 @@ import cz.cvut.kbss.termit.util.Configuration;
 import cz.cvut.kbss.termit.util.Constants;
 import cz.cvut.kbss.termit.util.CsvUtils;
 import cz.cvut.kbss.termit.util.Vocabulary;
-import org.apache.jena.atlas.json.JSON;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -27,6 +28,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
@@ -45,24 +47,38 @@ public class TermOccurrenceController extends BaseController {
 
     private final TermOccurrenceService occurrenceService;
     private final ResourceService resourceService;
+    protected final IdentifierResolver idResolver;
+
 
     public TermOccurrenceController(IdentifierResolver idResolver, Configuration config,
                                     TermOccurrenceService occurrenceService,
-                                    ResourceService resourceService) {
+                                    ResourceService resourceService,
+                                    IdentifierResolver idResolver1) {
         super(idResolver, config);
         this.occurrenceService = occurrenceService;
         this.resourceService = resourceService;
+        this.idResolver = idResolver1;
     }
 
     @PutMapping(value = "/{normalizedName}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @PreAuthorize("hasRole('" + SecurityConstants.ROLE_FULL_USER + "')")
     public void approveOccurrence(@PathVariable String normalizedName,
-                                  @RequestParam(name = Constants.QueryParams.NAMESPACE) String namespace) {
-        final URI identifier = idResolver.resolveIdentifier(namespace, normalizedName);
-
-        occurrenceService.approve(occurrenceService.getRequiredReference(identifier));
-        LOG.debug("Occurrence with identifier <{}> approved.", identifier);
+                                  @RequestParam(name = Constants.QueryParams.NAMESPACE) String namespace,
+                                  @RequestParam(required = false) Optional<String> termFragment)
+            throws URISyntaxException {
+//        final URI identifier = idResolver.resolveIdentifier(namespace, normalizedName);
+//       TODO: put real URI back
+        final URI termOccurrenceIdentifier = idResolver.resolveIdentifier(namespace, normalizedName);
+        TermOccurrence termOccurrence = occurrenceService.getRequiredReference(termOccurrenceIdentifier);
+        if (termFragment.isPresent()){
+            final URI termUri = idResolver.resolveIdentifier(namespace, termFragment.get());
+            termOccurrence.setTerm(termUri);
+        } else if (termFragment.isEmpty() && termOccurrence.getTerm() == null) {
+            throw new ValidationException("Cannot approve a term occurrence without specifying what term it belongs to!");
+        }
+        occurrenceService.approve(termOccurrence);
+        LOG.debug("Occurrence with identifier <{}> approved.", termOccurrenceIdentifier);
     }
 
     @DeleteMapping(value = "/{normalizedName}")
@@ -76,19 +92,21 @@ public class TermOccurrenceController extends BaseController {
     }
 
     @PostMapping(consumes = {MediaType.APPLICATION_JSON_VALUE, JsonLd.MEDIA_TYPE})
-    @ResponseStatus(HttpStatus.NO_CONTENT)
     @PreAuthorize("hasRole('" + SecurityConstants.ROLE_FULL_USER + "')")
-    public void createOccurrence(@RequestParam(name = Constants.QueryParams.NAMESPACE) String namespace,
-                                 @RequestParam( required = false) Optional<String> termIdFragment,
+    public TermWebsiteOccurrence createWebOccurrence(@RequestParam(name = Constants.QueryParams.NAMESPACE) String namespace,
+                                 @RequestParam(required = false) Optional<String> termFragment,
                                  @RequestParam String websiteFragment,
+                             @RequestParam(value = "contextIri", required = false) String contextIri,
                                  @RequestBody TermOccurrenceDTO termOccurrenceDTO
 // TODO (alanb) uncomment this  @RequestBody TermWebsiteOccurrence termOccurrence
     ) {
+        final Configuration.Namespace cfgNamespace = config.getNamespace();
+
         final URI websiteIdentifier =  idResolver.resolveIdentifier(namespace, websiteFragment);
         final Website website = (Website) resourceService.findRequired(websiteIdentifier);
         TermWebsiteOccurrence termWebsiteOccurrence = new TermWebsiteOccurrence();
-        if (termIdFragment.isPresent()){
-            final URI termUri = idResolver.resolveIdentifier(namespace, termIdFragment.get());
+        if (termFragment.isPresent()){
+            final URI termUri = idResolver.resolveIdentifier(namespace, termFragment.get());
             termWebsiteOccurrence.setTerm(termUri);
 //          TODO: add correct types
         }
@@ -100,9 +118,16 @@ public class TermOccurrenceController extends BaseController {
         websiteOccurrenceTarget.setSelectors(selectors);
         termWebsiteOccurrence.setTarget(websiteOccurrenceTarget);
         termWebsiteOccurrence.addType(Vocabulary.s_c_vyskyt_termu);
+        termWebsiteOccurrence.setUri(idResolver
+                .generateDerivedIdentifier(URI.create(contextIri), cfgNamespace.getTerm().getSeparator(), termOccurrenceDTO.getId()));
+//      TODO: should make sure not to add duplicate types
+        if (!termOccurrenceDTO.getExtraTypes().isEmpty()){
+            termWebsiteOccurrence.getTypes().addAll(termOccurrenceDTO.getExtraTypes());
+        }
         occurrenceService.persist(termWebsiteOccurrence);
 
         LOG.debug("TermWebsiteOccurrence created: {}.", termWebsiteOccurrence);
+        return termWebsiteOccurrence;
     }
 
 

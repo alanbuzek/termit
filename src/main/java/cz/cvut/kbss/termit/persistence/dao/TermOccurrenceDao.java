@@ -143,13 +143,21 @@ public class TermOccurrenceDao extends BaseDao<TermOccurrence> {
     }
 
     public List<TermWebsiteOccurrence> findAllTargetingWebsite(Asset<?> target) {
-        List<TermWebsiteOccurrence> results =  em.createNativeQuery("select distinct ?x where { \n" +
-                "\t?x a ?websiteOccurrence .\n" +
+        final Query query =  em.createNativeQuery("select distinct ?x where {\n" +
+                "  ?x a <http://onto.fel.cvut.cz/ontologies/application/termit/pojem/webový-výskyt-termu> . ?x <http://onto.fel.cvut.cz/ontologies/application/termit/pojem/má-cíl> ?target .\n" +
+                "  ?target a <http://onto.fel.cvut.cz/ontologies/application/termit/pojem/má-cíl-webového-výskytu> .\n" +
+                "  ?target <http://onto.fel.cvut.cz/ontologies/slovník/agendový/popis-dat/pojem/má-zdroj> ?source\n" +
                 "}", TermWebsiteOccurrence.class)
-                         .setParameter("websiteOccurrence", URI.create(VocabularyMock.s_c_webovy_vyskyt_termu))
-                         .getResultList();
+//                               TODO (alanb)
+//                         .setParameter("websiteOccurrence", URI.create(VocabularyMock.s_c_webovy_vyskyt_termu))
+//                         .setParameter("hasTarget", URI.create(Vocabulary.s_p_ma_cil))
+//                         .setParameter("hasSource", URI.create(Vocabulary.s_p_ma_zdroj))
+                         .setParameter("source", target.getUri());
+//                         .setParameter("websiteOccurrenceTarget", VocabularyMock.s_c_cil_weboveho_vyskytu);
 
-        return results;
+
+        System.out.println("QUERY: " + query.toString());
+        return query.getResultList();
     }
 
     /**
