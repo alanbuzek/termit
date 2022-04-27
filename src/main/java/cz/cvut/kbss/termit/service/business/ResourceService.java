@@ -68,15 +68,19 @@ public class ResourceService
 
     private ApplicationEventPublisher eventPublisher;
 
+    private final TermOccurrenceService termOccurrenceService;
+
     @Autowired
     public ResourceService(ResourceRepositoryService repositoryService, DocumentManager documentManager,
                            TextAnalysisService textAnalysisService, VocabularyService vocabularyService,
-                           ChangeRecordService changeRecordService) {
+                           ChangeRecordService changeRecordService,
+                           TermOccurrenceService termOccurrenceService) {
         this.repositoryService = repositoryService;
         this.documentManager = documentManager;
         this.textAnalysisService = textAnalysisService;
         this.vocabularyService = vocabularyService;
         this.changeRecordService = changeRecordService;
+        this.termOccurrenceService = termOccurrenceService;
     }
 
     /**
@@ -238,7 +242,7 @@ public class ResourceService
     /**
      * Removes the file. The file is detached from the document and removed, together with its content.
      *
-     * @param file The file to add and save
+     * @param file The file to remove
      * @throws UnsupportedAssetOperationException If the specified resource is not a Document
      */
     @Transactional
@@ -255,6 +259,28 @@ public class ResourceService
         }
         documentManager.remove(file);
         repositoryService.remove(file);
+    }
+
+    /**
+     * Removes a website. The website is detached from the document and removed, together with all its associated occurrences.
+     *
+     * @param website The website to remove
+     * @throws UnsupportedAssetOperationException If the specified resource is not a Document
+     */
+    @Transactional
+    public void removeWebsite(Website website) {
+        Objects.requireNonNull(website);
+        final Document doc = website.getDocument();
+        if (doc == null) {
+            throw new InvalidParameterException("Website was not attached to a document.");
+        } else {
+            doc.removeWebsite(website);
+            if (repositoryService.getReference(doc.getUri()).isPresent()) {
+                update(doc);
+            }
+        }
+        repositoryService.remove(website);
+        termOccurrenceService.removeAllInResource(website);
     }
 
     /**

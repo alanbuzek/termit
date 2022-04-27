@@ -3,6 +3,7 @@ package cz.cvut.kbss.termit.service.business;
 import cz.cvut.kbss.termit.model.assignment.TermOccurrence;
 import cz.cvut.kbss.termit.model.assignment.TermWebsiteOccurrence;
 import cz.cvut.kbss.termit.model.resource.Resource;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.net.URI;
 import java.util.List;
@@ -22,6 +23,9 @@ public interface TermOccurrenceService {
      * @throws cz.cvut.kbss.termit.exception.NotFoundException If there is no such term occurrence
      */
     TermOccurrence getRequiredReference(URI id);
+
+    @Transactional
+    TermOccurrence find(URI id);
 
     /**
      * Persists the specified term occurrence.
@@ -48,4 +52,6 @@ public interface TermOccurrenceService {
 
 //    TODO: add comment
     List<TermWebsiteOccurrence> getAllOccurrencesInResource(Resource resource);
+
+    void removeAllInResource(Resource resource);
 }

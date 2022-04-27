@@ -32,6 +32,7 @@ import java.net.URISyntaxException;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 @RestController
 @RequestMapping(TermOccurrenceController.PATH)
@@ -64,15 +65,18 @@ public class TermOccurrenceController extends BaseController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @PreAuthorize("hasRole('" + SecurityConstants.ROLE_FULL_USER + "')")
     public void approveOccurrence(@PathVariable String normalizedName,
-                                  @RequestParam(name = Constants.QueryParams.NAMESPACE) String namespace,
+                                  @RequestParam String occurrenceNamespace,
+                                  @RequestParam String termNamespace,
                                   @RequestParam(required = false) Optional<String> termFragment)
             throws URISyntaxException {
 //        final URI identifier = idResolver.resolveIdentifier(namespace, normalizedName);
 //       TODO: put real URI back
-        final URI termOccurrenceIdentifier = idResolver.resolveIdentifier(namespace, normalizedName);
-        TermOccurrence termOccurrence = occurrenceService.getRequiredReference(termOccurrenceIdentifier);
+        final URI termOccurrenceIdentifier = idResolver.resolveIdentifier(occurrenceNamespace, normalizedName);
+        TermOccurrence termOccurrence = occurrenceService.find(termOccurrenceIdentifier);
+        System.out.println("TermOccurrence: " + termOccurrence);
+        System.out.println("TARGET: " + termOccurrence.getTarget());
         if (termFragment.isPresent()){
-            final URI termUri = idResolver.resolveIdentifier(namespace, termFragment.get());
+            final URI termUri = idResolver.resolveIdentifier(termNamespace, termFragment.get());
             termOccurrence.setTerm(termUri);
         } else if (termFragment.isEmpty() && termOccurrence.getTerm() == null) {
             throw new ValidationException("Cannot approve a term occurrence without specifying what term it belongs to!");
@@ -93,8 +97,9 @@ public class TermOccurrenceController extends BaseController {
 
     @PostMapping(consumes = {MediaType.APPLICATION_JSON_VALUE, JsonLd.MEDIA_TYPE})
     @PreAuthorize("hasRole('" + SecurityConstants.ROLE_FULL_USER + "')")
-    public TermWebsiteOccurrence createWebOccurrence(@RequestParam(name = Constants.QueryParams.NAMESPACE) String namespace,
+    public TermWebsiteOccurrence createWebOccurrence(@RequestParam(required = false) Optional<String> termNamespace,
                                  @RequestParam(required = false) Optional<String> termFragment,
+                                 @RequestParam String websiteNamespace,
                                  @RequestParam String websiteFragment,
                              @RequestParam(value = "contextIri", required = false) String contextIri,
                                  @RequestBody TermOccurrenceDTO termOccurrenceDTO
@@ -102,11 +107,11 @@ public class TermOccurrenceController extends BaseController {
     ) {
         final Configuration.Namespace cfgNamespace = config.getNamespace();
 
-        final URI websiteIdentifier =  idResolver.resolveIdentifier(namespace, websiteFragment);
+        final URI websiteIdentifier =  idResolver.resolveIdentifier(websiteNamespace, websiteFragment);
         final Website website = (Website) resourceService.findRequired(websiteIdentifier);
         TermWebsiteOccurrence termWebsiteOccurrence = new TermWebsiteOccurrence();
-        if (termFragment.isPresent()){
-            final URI termUri = idResolver.resolveIdentifier(namespace, termFragment.get());
+        if (termFragment.isPresent() && termNamespace.isPresent()){
+            final URI termUri = idResolver.resolveIdentifier(termNamespace.get(), termFragment.get());
             termWebsiteOccurrence.setTerm(termUri);
 //          TODO: add correct types
         }
@@ -119,7 +124,10 @@ public class TermOccurrenceController extends BaseController {
         termWebsiteOccurrence.setTarget(websiteOccurrenceTarget);
         termWebsiteOccurrence.addType(Vocabulary.s_c_vyskyt_termu);
         termWebsiteOccurrence.setUri(idResolver
-                .generateDerivedIdentifier(URI.create(contextIri), cfgNamespace.getTerm().getSeparator(), termOccurrenceDTO.getId()));
+                .generateDerivedIdentifier(URI.create(contextIri), cfgNamespace.getTermOccurrence().getSeparator(), UUID
+                        .randomUUID().toString().substring(0, 10).concat("-")));
+
+        System.out.println("URI: " + termWebsiteOccurrence.getUri());
 //      TODO: should make sure not to add duplicate types
         if (!termOccurrenceDTO.getExtraTypes().isEmpty()){
             termWebsiteOccurrence.getTypes().addAll(termOccurrenceDTO.getExtraTypes());

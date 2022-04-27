@@ -160,6 +160,17 @@ public class TermOccurrenceDao extends BaseDao<TermOccurrence> {
         return query.getResultList();
     }
 
+    public void removeAllTargetingWebsite(Asset<?> target) {
+//        TODO: use removeAll
+        em.createNativeQuery("delete where {\n" +
+                "  ?x a <http://onto.fel.cvut.cz/ontologies/application/termit/pojem/webový-výskyt-termu> . ?x <http://onto.fel.cvut.cz/ontologies/application/termit/pojem/má-cíl> ?target .\n" +
+                "  ?target a <http://onto.fel.cvut.cz/ontologies/application/termit/pojem/má-cíl-webového-výskytu> .\n" +
+                "  ?target <http://onto.fel.cvut.cz/ontologies/slovník/agendový/popis-dat/pojem/má-zdroj> ?source\n" +
+                "}", TermWebsiteOccurrence.class)
+          .setParameter("source", target.getUri())
+          .executeUpdate();
+    }
+
     /**
      * Gets aggregated information about occurrences of the specified {@link Term}.
      *

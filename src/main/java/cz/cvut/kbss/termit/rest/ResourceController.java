@@ -191,6 +191,19 @@ public class ResourceController extends BaseController {
         LOG.debug("File {} successfully removed.", fileIdentifier);
     }
 
+    @DeleteMapping(value = "/{resourceName}/websites/{websiteName}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize("hasRole('" + SecurityConstants.ROLE_FULL_USER + "')")
+    public void removeWebsiteFromDocument(@PathVariable String resourceName,
+                                       @RequestParam(name = QueryParams.NAMESPACE,
+                                                     required = false) Optional<String> namespace,
+                                       @PathVariable String websiteName) {
+        final URI fileIdentifier = resolveIdentifier(resourceNamespace(namespace), websiteName);
+        final Website website = (Website) resourceService.findRequired(fileIdentifier);
+        resourceService.removeWebsite(website);
+        LOG.debug("Website {} successfully removed.", fileIdentifier);
+    }
+
     /**
      * Runs text analysis on the specified resource.
      *

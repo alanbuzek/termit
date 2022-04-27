@@ -138,12 +138,18 @@ public class IdentifierResolver {
         return URI.create(namespace + normalize(comps));
     }
 
-    public URI generateWebsiteIdentifier(String namespace, String websiteURL) {
+    public URI generateWebsiteIdentifier(String namespace, String... components) {
+        Objects.requireNonNull(namespace);
+        if (components.length == 0) {
+            throw new IllegalArgumentException("Must provide at least one component for identifier generation.");
+        }
+        final String comps = String.join("-", components);
+
         Objects.requireNonNull(namespace);
         if (!namespace.endsWith("/") && !namespace.endsWith("#")) {
             namespace += "/";
         }
-        return URI.create(namespace + normalize(websiteURL));
+        return URI.create(namespace + normalize(comps));
     }
 
     private static boolean isUri(String value) {

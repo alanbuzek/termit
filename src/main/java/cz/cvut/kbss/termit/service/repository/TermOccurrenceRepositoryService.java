@@ -57,6 +57,14 @@ public class TermOccurrenceRepositoryService implements TermOccurrenceService {
 
     @Transactional
     @Override
+    public TermOccurrence find(URI id) {
+        return termOccurrenceDao.find(id).orElseThrow(() ->
+                NotFoundException.create(TermOccurrence.class.getSimpleName(), id)
+        );
+    }
+
+    @Transactional
+    @Override
     public void persist(TermOccurrence occurrence) {
         Objects.requireNonNull(occurrence);
         termOccurrenceDao.persist(occurrence);
@@ -80,8 +88,15 @@ public class TermOccurrenceRepositoryService implements TermOccurrenceService {
     }
 
     @Transactional
+    @Override
     public List<TermWebsiteOccurrence> getAllOccurrencesInResource(Resource resource){
         return termOccurrenceDao.findAllTargetingWebsite(resource);
+    }
+
+    @Transactional
+    @Override
+    public void removeAllInResource(Resource resource){
+        termOccurrenceDao.removeAllTargetingWebsite(resource);
     }
 
     /**

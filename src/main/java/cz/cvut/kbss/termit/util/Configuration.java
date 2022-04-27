@@ -307,6 +307,9 @@ public class Configuration {
          * the value of this configuration parameter.
          */
         private NamespaceDetail file = new NamespaceDetail();
+        private NamespaceDetail website = new NamespaceDetail();
+        private NamespaceDetail termOccurrence = new NamespaceDetail();
+
 
         public String getVocabulary() {
             return vocabulary;
@@ -340,12 +343,28 @@ public class Configuration {
             this.term = term;
         }
 
+        public NamespaceDetail getTermOccurrence() {
+            return termOccurrence;
+        }
+
+        public void setTermOccurrence(NamespaceDetail termOccurrence) {
+            this.termOccurrence = termOccurrence;
+        }
+
         public NamespaceDetail getFile() {
             return file;
         }
 
         public void setFile(NamespaceDetail file) {
             this.file = file;
+        }
+
+        public NamespaceDetail getWebsite() {
+            return website;
+        }
+
+        public void setWebsite(NamespaceDetail website) {
+            this.website = website;
         }
 
         public static class NamespaceDetail {

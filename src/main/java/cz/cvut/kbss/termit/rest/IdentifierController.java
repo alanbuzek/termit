@@ -65,8 +65,9 @@ public class IdentifierController extends BaseController {
                 ensureContextIriIsNull(assetType, contextIri);
                 return idResolver.generateIdentifier(cfgNamespace.getVocabulary(), name);
             case WEBSITE:
-                ensureContextIriIsNull(assetType, contextIri);
-                return idResolver.generateWebsiteIdentifier(cfgNamespace.getVocabulary(), name);
+                ensureContextIriIsNotNull(assetType, contextIri);
+                return idResolver.generateWebsiteIdentifier(idResolver.buildNamespace(URI.create(contextIri).toString(),
+                        cfgNamespace.getWebsite().getSeparator()), name);
             case FILE:
                 ensureContextIriIsNotNull(assetType, contextIri);
                 return idResolver
