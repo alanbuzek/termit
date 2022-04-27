@@ -47,8 +47,12 @@ termit:
         resource: http://onto.fel.cvut.cz/ontologies/zdroj/
         term:
             separator: /pojem
+        termOccurrence:
+            separator: /vyskyt-pojmu
         file:
             separator: /soubor
+        website:
+            separator: /webova-stranka
     file:
         storage: /tmp/termit
     textAnalysis:

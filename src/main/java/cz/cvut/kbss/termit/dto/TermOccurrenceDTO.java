@@ -27,6 +27,8 @@ public class TermOccurrenceDTO {
     private String exactMatch;
     private List<String> extraTypes = new ArrayList<>();
     private String id;
+    private String termFragment;
+    private String termNamespace;
 
     public TermOccurrenceDTO() {
     }
@@ -69,5 +71,21 @@ public class TermOccurrenceDTO {
 
     public void setId(String id) {
         this.id = id;
+    }
+
+    public String getTermFragment() {
+        return termFragment;
+    }
+
+    public void setTermFragment(String termFragment) {
+        this.termFragment = termFragment;
+    }
+
+    public String getTermNamespace() {
+        return termNamespace;
+    }
+
+    public void setTermNamespace(String termNamespace) {
+        this.termNamespace = termNamespace;
     }
 }

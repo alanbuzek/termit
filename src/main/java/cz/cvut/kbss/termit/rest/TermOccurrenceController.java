@@ -33,6 +33,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping(TermOccurrenceController.PATH)
@@ -97,24 +98,29 @@ public class TermOccurrenceController extends BaseController {
 
     @PostMapping(consumes = {MediaType.APPLICATION_JSON_VALUE, JsonLd.MEDIA_TYPE})
     @PreAuthorize("hasRole('" + SecurityConstants.ROLE_FULL_USER + "')")
-    public TermWebsiteOccurrence createWebOccurrence(@RequestParam(required = false) Optional<String> termNamespace,
-                                 @RequestParam(required = false) Optional<String> termFragment,
+    public List<TermWebsiteOccurrence> createWebOccurrences(
                                  @RequestParam String websiteNamespace,
                                  @RequestParam String websiteFragment,
                              @RequestParam(value = "contextIri", required = false) String contextIri,
-                                 @RequestBody TermOccurrenceDTO termOccurrenceDTO
+                                 @RequestBody List<TermOccurrenceDTO> termOccurrenceDTOs
 // TODO (alanb) uncomment this  @RequestBody TermWebsiteOccurrence termOccurrence
     ) {
         final Configuration.Namespace cfgNamespace = config.getNamespace();
 
         final URI websiteIdentifier =  idResolver.resolveIdentifier(websiteNamespace, websiteFragment);
         final Website website = (Website) resourceService.findRequired(websiteIdentifier);
-        TermWebsiteOccurrence termWebsiteOccurrence = new TermWebsiteOccurrence();
-        if (termFragment.isPresent() && termNamespace.isPresent()){
-            final URI termUri = idResolver.resolveIdentifier(termNamespace.get(), termFragment.get());
-            termWebsiteOccurrence.setTerm(termUri);
+
+        return termOccurrenceDTOs.stream().map(t -> createSingleWebOccurrence(t, website, contextIri, cfgNamespace)).collect(Collectors.toList());
+    }
+
+    private TermWebsiteOccurrence createSingleWebOccurrence(TermOccurrenceDTO termOccurrenceDTO, Website website, String contextIri, Configuration.Namespace cfgNamespace){
+        URI termUri = null;
+        if (termOccurrenceDTO.getTermFragment() != null && termOccurrenceDTO.getTermNamespace() != null){
+            termUri = idResolver.resolveIdentifier(termOccurrenceDTO.getTermNamespace(), termOccurrenceDTO.getTermFragment());
 //          TODO: add correct types
         }
+        TermWebsiteOccurrence termWebsiteOccurrence = new TermWebsiteOccurrence();
+        termWebsiteOccurrence.setTerm(termUri);
         WebsiteOccurrenceTarget websiteOccurrenceTarget = new WebsiteOccurrenceTarget(website);
         HashSet<Selector> selectors = new HashSet<>();
         selectors.add(new CssSelector(termOccurrenceDTO.getSelector()));
@@ -133,10 +139,10 @@ public class TermOccurrenceController extends BaseController {
             termWebsiteOccurrence.getTypes().addAll(termOccurrenceDTO.getExtraTypes());
         }
         occurrenceService.persist(termWebsiteOccurrence);
-
         LOG.debug("TermWebsiteOccurrence created: {}.", termWebsiteOccurrence);
         return termWebsiteOccurrence;
     }
+
 
 
     @GetMapping(value = "/resources/{resourceFragment}",
