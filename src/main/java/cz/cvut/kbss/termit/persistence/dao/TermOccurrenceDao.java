@@ -142,12 +142,12 @@ public class TermOccurrenceDao extends BaseDao<TermOccurrence> {
         return new SparqlResultToTermOccurrenceMapper(target.getUri()).map(query.getResultList());
     }
 
-    public List<TermWebsiteOccurrence> findAllTargetingWebsite(Asset<?> target) {
+    public List<TermOccurrence> findAllTargetingWebsite(Asset<?> target) {
         final Query query =  em.createNativeQuery("select distinct ?x where {\n" +
-                "  ?x a <http://onto.fel.cvut.cz/ontologies/application/termit/pojem/webový-výskyt-termu> . ?x <http://onto.fel.cvut.cz/ontologies/application/termit/pojem/má-cíl> ?target .\n" +
+                "  ?x <http://onto.fel.cvut.cz/ontologies/application/termit/pojem/má-cíl> ?target .\n" +
                 "  ?target a <http://onto.fel.cvut.cz/ontologies/application/termit/pojem/má-cíl-webového-výskytu> .\n" +
                 "  ?target <http://onto.fel.cvut.cz/ontologies/slovník/agendový/popis-dat/pojem/má-zdroj> ?source\n" +
-                "}", TermWebsiteOccurrence.class)
+                "}", TermOccurrence.class)
 //                               TODO (alanb)
 //                         .setParameter("websiteOccurrence", URI.create(VocabularyMock.s_c_webovy_vyskyt_termu))
 //                         .setParameter("hasTarget", URI.create(Vocabulary.s_p_ma_cil))
@@ -156,17 +156,27 @@ public class TermOccurrenceDao extends BaseDao<TermOccurrence> {
 //                         .setParameter("websiteOccurrenceTarget", VocabularyMock.s_c_cil_weboveho_vyskytu);
 
 
-        System.out.println("QUERY: " + query.toString());
         return query.getResultList();
     }
 
     public void removeAllTargetingWebsite(Asset<?> target) {
 //        TODO: use removeAll
         em.createNativeQuery("delete where {\n" +
-                "  ?x a <http://onto.fel.cvut.cz/ontologies/application/termit/pojem/webový-výskyt-termu> . ?x <http://onto.fel.cvut.cz/ontologies/application/termit/pojem/má-cíl> ?target .\n" +
+                "  ?x <http://onto.fel.cvut.cz/ontologies/application/termit/pojem/má-cíl> ?target .\n" +
                 "  ?target a <http://onto.fel.cvut.cz/ontologies/application/termit/pojem/má-cíl-webového-výskytu> .\n" +
                 "  ?target <http://onto.fel.cvut.cz/ontologies/slovník/agendový/popis-dat/pojem/má-zdroj> ?source\n" +
-                "}", TermWebsiteOccurrence.class)
+                "}", TermOccurrence.class)
+          .setParameter("source", target.getUri())
+          .executeUpdate();
+    }
+    public void removeAllSuggestionsTargetingWebsite(Asset<?> target) {
+//        TODO: use removeAll
+        em.createNativeQuery("delete where {\n" +
+                "  ?x a <http://onto.fel.cvut.cz/ontologies/application/termit/pojem/navržený-výskyt-termu> .\n" +
+                "  ?x <http://onto.fel.cvut.cz/ontologies/application/termit/pojem/má-cíl> ?target .\n" +
+                "  ?target a <http://onto.fel.cvut.cz/ontologies/application/termit/pojem/má-cíl-webového-výskytu> .\n" +
+                "  ?target <http://onto.fel.cvut.cz/ontologies/slovník/agendový/popis-dat/pojem/má-zdroj> ?source\n" +
+                "}", TermOccurrence.class)
           .setParameter("source", target.getUri())
           .executeUpdate();
     }

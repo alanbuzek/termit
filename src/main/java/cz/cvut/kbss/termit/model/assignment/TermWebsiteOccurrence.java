@@ -1,23 +1,12 @@
 package cz.cvut.kbss.termit.model.assignment;
 
-import cz.cvut.kbss.jopa.model.annotations.OWLClass;
-import cz.cvut.kbss.jopa.model.annotations.OWLDataProperty;
+import cz.cvut.kbss.jopa.model.annotations.*;
 import cz.cvut.kbss.termit.model.resource.VocabularyMock;
 
 import java.net.URI;
 @OWLClass(iri = VocabularyMock.s_c_webovy_vyskyt_termu)
 public class TermWebsiteOccurrence extends TermOccurrence  {
 
-//    @OWLDataProperty(iri = VocabularyMock.s_p_poradi_vyskytu_termu)
-//    private Integer orderNumber;
-//
-//    public Integer getOrderNumber() {
-//        return orderNumber;
-//    }
-//
-//    public void setOrderNumber(Integer orderNumber) {
-//        this.orderNumber = orderNumber;
-//    }
 
     public TermWebsiteOccurrence() {
     }
@@ -25,6 +14,9 @@ public class TermWebsiteOccurrence extends TermOccurrence  {
     public TermWebsiteOccurrence(URI term, WebsiteOccurrenceTarget target) {
         super(term, target);
     }
+
+    @OWLDataProperty(iri = VocabularyMock.s_p_ma_navrhovane_lemma)
+    private String suggestedLemma;
 
     @Override
     public WebsiteOccurrenceTarget getTarget() {
@@ -34,5 +26,13 @@ public class TermWebsiteOccurrence extends TermOccurrence  {
 
     public void setTarget(WebsiteOccurrenceTarget target) {
         this.target = target;
+    }
+
+    public String getSuggestedLemma() {
+        return suggestedLemma;
+    }
+
+    public void setSuggestedLemma(String suggestedLemma) {
+        this.suggestedLemma = suggestedLemma;
     }
 }

@@ -19,7 +19,6 @@ package cz.cvut.kbss.termit.service.repository;
 
 import cz.cvut.kbss.termit.exception.NotFoundException;
 import cz.cvut.kbss.termit.model.assignment.TermOccurrence;
-import cz.cvut.kbss.termit.model.assignment.TermWebsiteOccurrence;
 import cz.cvut.kbss.termit.model.resource.Resource;
 import cz.cvut.kbss.termit.persistence.dao.TermOccurrenceDao;
 import cz.cvut.kbss.termit.service.business.TermOccurrenceService;
@@ -89,7 +88,7 @@ public class TermOccurrenceRepositoryService implements TermOccurrenceService {
 
     @Transactional
     @Override
-    public List<TermWebsiteOccurrence> getAllOccurrencesInResource(Resource resource){
+    public List<TermOccurrence> getAllOccurrencesInResource(Resource resource){
         return termOccurrenceDao.findAllTargetingWebsite(resource);
     }
 
@@ -98,6 +97,13 @@ public class TermOccurrenceRepositoryService implements TermOccurrenceService {
     public void removeAllInResource(Resource resource){
         termOccurrenceDao.removeAllTargetingWebsite(resource);
     }
+
+    @Transactional
+    @Override
+    public void removeAllSuggestionsInResource(Resource resource){
+        termOccurrenceDao.removeAllSuggestionsTargetingWebsite(resource);
+    }
+
 
     /**
      * Cleans up possibly orphaned term occurrences.

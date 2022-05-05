@@ -1,7 +1,6 @@
 package cz.cvut.kbss.termit.service.business;
 
 import cz.cvut.kbss.termit.model.assignment.TermOccurrence;
-import cz.cvut.kbss.termit.model.assignment.TermWebsiteOccurrence;
 import cz.cvut.kbss.termit.model.resource.Resource;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -50,8 +49,10 @@ public interface TermOccurrenceService {
      */
     void remove(TermOccurrence occurrence);
 
-//    TODO: add comment
-    List<TermWebsiteOccurrence> getAllOccurrencesInResource(Resource resource);
+    List<TermOccurrence> getAllOccurrencesInResource(Resource resource);
 
     void removeAllInResource(Resource resource);
+
+    //    TODO: add comment
+    void removeAllSuggestionsInResource(Resource resource);
 }

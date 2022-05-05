@@ -375,14 +375,17 @@ public class TermService implements RudService<Term>, ChangeRecordProvider<Term>
     public Term update(Term term) {
         Objects.requireNonNull(term);
         final Term original = repositoryService.findRequired(term.getUri());
-        if (!Objects.equals(original.getDefinition(), term.getDefinition())) {
-            analyzeTermDefinition(term, term.getVocabulary());
-        }
+        System.out.println("original: " + original.getDefinition());
+        System.out.println("new: " + term.getDefinition());
+//        TODO: Put these invocations back
+//        if (!Objects.equals(original.getDefinition(), term.getDefinition())) {
+//            analyzeTermDefinition(term, term.getVocabulary());
+//        }
         final Term result = repositoryService.update(term);
         // Ensure the change is merged into the repo before analyzing other terms
-        if (!Objects.equals(original.getLabel(), term.getLabel())) {
-            vocabularyService.runTextAnalysisOnAllTerms(getRequiredVocabularyReference(original.getVocabulary()));
-        }
+//        if (!Objects.equals(original.getLabel(), term.getLabel())) {
+//            vocabularyService.runTextAnalysisOnAllTerms(getRequiredVocabularyReference(original.getVocabulary()));
+//        }
         return result;
     }
 
@@ -443,7 +446,7 @@ public class TermService implements RudService<Term>, ChangeRecordProvider<Term>
      * @param definitionSource Definition source representation
      */
     @Transactional
-    public void setTermDefinitionSource(Term term, TermDefinitionSource definitionSource) {
+    public TermDefinitionSource setTermDefinitionSource(Term term, TermDefinitionSource definitionSource) {
         Objects.requireNonNull(term);
         Objects.requireNonNull(definitionSource);
         definitionSource.setTerm(term.getUri());
@@ -452,6 +455,8 @@ public class TermService implements RudService<Term>, ChangeRecordProvider<Term>
             termOccurrenceService.remove(existingTerm.getDefinitionSource());
         }
         termOccurrenceService.persist(definitionSource);
+
+        return definitionSource;
     }
 
     /**

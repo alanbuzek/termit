@@ -468,21 +468,21 @@ public class TermController extends BaseController {
     }
 
     @PutMapping(value = "/terms/{termIdFragment}/definition-source",
-                consumes = {JsonLd.MEDIA_TYPE, MediaType.APPLICATION_JSON_VALUE})
-    @ResponseStatus(HttpStatus.NO_CONTENT)
+                consumes = {JsonLd.MEDIA_TYPE, MediaType.APPLICATION_JSON_VALUE}, produces = {JsonLd.MEDIA_TYPE, MediaType.APPLICATION_JSON_VALUE})
     @PreAuthorize("hasRole('" + SecurityConstants.ROLE_FULL_USER + "')")
-    public void setTermDefinitionSource(@PathVariable String termIdFragment,
+    public TermDefinitionSource setTermDefinitionSource(@PathVariable String termIdFragment,
                                         @RequestParam(name = QueryParams.NAMESPACE) String namespace,
                                         @RequestBody TermDefinitionSource definitionSource) {
         final URI termUri = idResolver.resolveIdentifier(namespace, termIdFragment);
         termService.setTermDefinitionSource(termService.getRequiredReference(termUri), definitionSource);
         LOG.debug("Definition source of term {} set to {}.", termUri, definitionSource);
+        return definitionSource;
     }
 
     @DeleteMapping(value = "/terms/{termIdFragment}/definition-source")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @PreAuthorize("hasRole('" + SecurityConstants.ROLE_FULL_USER + "')")
-    public void setTermDefinitionSource(@PathVariable String termIdFragment,
+    public void removeTermDefinitionSource(@PathVariable String termIdFragment,
                                         @RequestParam(name = QueryParams.NAMESPACE) String namespace) {
         final URI termUri = idResolver.resolveIdentifier(namespace, termIdFragment);
         final Term term = termService.findRequired(termUri);

@@ -9,12 +9,12 @@ import java.net.URI;
  * Represents source of definition of a {@link cz.cvut.kbss.termit.model.Term} discovered in the content of a file.
  */
 @OWLClass(iri = Vocabulary.s_c_zdroj_definice_termu)
-public class TermDefinitionSource extends TermFileOccurrence {
+public class TermDefinitionSource extends TermOccurrence {
 
     public TermDefinitionSource() {
     }
 
-    public TermDefinitionSource(URI term, FileOccurrenceTarget target) {
+    public TermDefinitionSource(URI term, OccurrenceTarget target) {
         super(term, target);
     }
 }

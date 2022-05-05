@@ -32,7 +32,6 @@ import java.net.URISyntaxException;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
-import java.util.UUID;
 import java.util.stream.Collectors;
 
 @RestController
@@ -130,10 +129,8 @@ public class TermOccurrenceController extends BaseController {
         termWebsiteOccurrence.setTarget(websiteOccurrenceTarget);
         termWebsiteOccurrence.addType(Vocabulary.s_c_vyskyt_termu);
         termWebsiteOccurrence.setUri(idResolver
-                .generateDerivedIdentifier(URI.create(contextIri), cfgNamespace.getTermOccurrence().getSeparator(), UUID
-                        .randomUUID().toString().substring(0, 10).concat("-")));
+                .generateDerivedIdentifier(URI.create(contextIri), cfgNamespace.getTermOccurrence().getSeparator(), termOccurrenceDTO.getId()));
 
-        System.out.println("URI: " + termWebsiteOccurrence.getUri());
 //      TODO: should make sure not to add duplicate types
         if (!termOccurrenceDTO.getExtraTypes().isEmpty()){
             termWebsiteOccurrence.getTypes().addAll(termOccurrenceDTO.getExtraTypes());
@@ -151,7 +148,7 @@ public class TermOccurrenceController extends BaseController {
                             CsvUtils.MEDIA_TYPE,
                             Constants.Excel.MEDIA_TYPE,
                             Constants.Turtle.MEDIA_TYPE})
-    public List<TermWebsiteOccurrence> getAllInResource(@RequestParam(name = Constants.QueryParams.NAMESPACE) String namespace,
+    public List<TermOccurrence> getAllInResource(@RequestParam(name = Constants.QueryParams.NAMESPACE) String namespace,
                                                  @PathVariable String resourceFragment){
 
         final URI websiteIdentifier = idResolver.resolveIdentifier(namespace, resourceFragment);
