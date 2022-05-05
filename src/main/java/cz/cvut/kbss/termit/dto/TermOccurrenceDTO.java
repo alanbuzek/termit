@@ -29,6 +29,7 @@ public class TermOccurrenceDTO {
     private String id;
     private String termFragment;
     private String termNamespace;
+    private String suggestedLemma;
 
     public TermOccurrenceDTO() {
     }
@@ -87,5 +88,13 @@ public class TermOccurrenceDTO {
 
     public void setTermNamespace(String termNamespace) {
         this.termNamespace = termNamespace;
+    }
+
+    public String getSuggestedLemma() {
+        return suggestedLemma;
+    }
+
+    public void setSuggestedLemma(String suggestedLemma) {
+        this.suggestedLemma = suggestedLemma;
     }
 }

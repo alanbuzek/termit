@@ -160,7 +160,6 @@ public class TermOccurrenceDao extends BaseDao<TermOccurrence> {
     }
 
     public void removeAllTargetingWebsite(Asset<?> target) {
-//        TODO: use removeAll
         em.createNativeQuery("delete where {\n" +
                 "  ?x <http://onto.fel.cvut.cz/ontologies/application/termit/pojem/má-cíl> ?target .\n" +
                 "  ?target a <http://onto.fel.cvut.cz/ontologies/application/termit/pojem/má-cíl-webového-výskytu> .\n" +
@@ -170,7 +169,6 @@ public class TermOccurrenceDao extends BaseDao<TermOccurrence> {
           .executeUpdate();
     }
     public void removeAllSuggestionsTargetingWebsite(Asset<?> target) {
-//        TODO: use removeAll
         em.createNativeQuery("delete where {\n" +
                 "  ?x a <http://onto.fel.cvut.cz/ontologies/application/termit/pojem/navržený-výskyt-termu> .\n" +
                 "  ?x <http://onto.fel.cvut.cz/ontologies/application/termit/pojem/má-cíl> ?target .\n" +

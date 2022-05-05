@@ -7,6 +7,7 @@ import cz.cvut.kbss.termit.model.assignment.TermOccurrence;
 import cz.cvut.kbss.termit.model.assignment.TermWebsiteOccurrence;
 import cz.cvut.kbss.termit.model.assignment.WebsiteOccurrenceTarget;
 import cz.cvut.kbss.termit.model.resource.Resource;
+import cz.cvut.kbss.termit.model.resource.VocabularyMock;
 import cz.cvut.kbss.termit.model.resource.Website;
 import cz.cvut.kbss.termit.model.selector.CssSelector;
 import cz.cvut.kbss.termit.model.selector.Selector;
@@ -135,6 +136,10 @@ public class TermOccurrenceController extends BaseController {
         if (!termOccurrenceDTO.getExtraTypes().isEmpty()){
             termWebsiteOccurrence.getTypes().addAll(termOccurrenceDTO.getExtraTypes());
         }
+        if (termWebsiteOccurrence.getTypes().contains(Vocabulary.s_c_navrzeny_vyskyt_termu) && termOccurrenceDTO.getSuggestedLemma() != null){
+            termWebsiteOccurrence.setSuggestedLemma(termOccurrenceDTO.getSuggestedLemma());
+        }
+
         occurrenceService.persist(termWebsiteOccurrence);
         LOG.debug("TermWebsiteOccurrence created: {}.", termWebsiteOccurrence);
         return termWebsiteOccurrence;
