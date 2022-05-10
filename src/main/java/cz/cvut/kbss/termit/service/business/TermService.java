@@ -348,8 +348,6 @@ public class TermService implements RudService<Term>, ChangeRecordProvider<Term>
         Objects.requireNonNull(owner);
         repositoryService.addRootTermToVocabulary(term, owner);
 //        analyzeTermDefinition(term, owner.getUri());
-//      TODO: ask about this, whether this needs to be there at all?
-//        vocabularyService.runTextAnalysisOnAllTerms(owner);
     }
 
     /**
@@ -362,7 +360,7 @@ public class TermService implements RudService<Term>, ChangeRecordProvider<Term>
         Objects.requireNonNull(child);
         Objects.requireNonNull(parent);
         repositoryService.addChildTerm(child, parent);
-        analyzeTermDefinition(child, parent.getVocabulary());
+//        analyzeTermDefinition(child, parent.getVocabulary());
         vocabularyService.runTextAnalysisOnAllTerms(getRequiredVocabularyReference(parent.getVocabulary()));
     }
 
@@ -377,10 +375,9 @@ public class TermService implements RudService<Term>, ChangeRecordProvider<Term>
         final Term original = repositoryService.findRequired(term.getUri());
         System.out.println("original: " + original.getDefinition());
         System.out.println("new: " + term.getDefinition());
-//        TODO: Put these invocations back
-//        if (!Objects.equals(original.getDefinition(), term.getDefinition())) {
+        if (!Objects.equals(original.getDefinition(), term.getDefinition())) {
 //            analyzeTermDefinition(term, term.getVocabulary());
-//        }
+        }
         final Term result = repositoryService.update(term);
         // Ensure the change is merged into the repo before analyzing other terms
 //        if (!Objects.equals(original.getLabel(), term.getLabel())) {
@@ -454,6 +451,23 @@ public class TermService implements RudService<Term>, ChangeRecordProvider<Term>
         if (existingTerm.getDefinitionSource() != null) {
             termOccurrenceService.remove(existingTerm.getDefinitionSource());
         }
+        definitionSource.getTypes().add(cz.cvut.kbss.termit.util.Vocabulary.s_c_vyskyt_termu);
+        termOccurrenceService.persist(definitionSource);
+
+        return definitionSource;
+    }
+
+
+    /**
+     * Sets the definition source of an unknown term
+     * <p>
+     *
+     * @param definitionSource Definition source representation
+     */
+    @Transactional
+    public TermDefinitionSource setUnassignedDefinitionSource(TermDefinitionSource definitionSource) {
+        Objects.requireNonNull(definitionSource);
+        definitionSource.getTypes().add(cz.cvut.kbss.termit.util.Vocabulary.s_c_vyskyt_termu);
         termOccurrenceService.persist(definitionSource);
 
         return definitionSource;
