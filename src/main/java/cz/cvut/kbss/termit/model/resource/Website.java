@@ -23,7 +23,7 @@ import cz.cvut.kbss.termit.util.Vocabulary;
 import java.util.Objects;
 import java.util.Set;
 
-@OWLClass(iri = VocabularyMock.s_c_webova_stranka)
+@OWLClass(iri = Vocabulary.s_c_webova_stranka)
 @JsonLdAttributeOrder({"uri", "label", "description"})
 public class Website extends Resource {
     public Website() {
@@ -42,7 +42,7 @@ public class Website extends Resource {
     @Types
     private Set<String> types;
 
-//    TODO: adjust as needed
+//    @ParticipationConstraints(nonEmpty = true)
     @OWLDataProperty(iri = DC.Terms.LOCATION)
     private String url;
 

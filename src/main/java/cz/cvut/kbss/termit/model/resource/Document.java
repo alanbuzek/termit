@@ -43,7 +43,7 @@ public class Document extends Resource implements SupportsStorage {
     private Set<File> files;
 
     @JsonManagedReference
-    @OWLObjectProperty(iri = VocabularyMock.s_p_ma_webovou_stranku, fetch = FetchType.EAGER)
+    @OWLObjectProperty(iri = Vocabulary.s_p_ma_webovou_stranku, fetch = FetchType.EAGER)
     private Set<Website> websites;
 
     @Inferred

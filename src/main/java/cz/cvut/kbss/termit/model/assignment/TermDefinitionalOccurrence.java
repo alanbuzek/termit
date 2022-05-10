@@ -8,8 +8,7 @@ import java.net.URI;
 /**
  * Represents an occurrence of a term in the definition of another term.
  */
-// TODO: put this back
-@OWLClass(iri = Vocabulary.s_c_definicni_vyskyt_termu + "mock")
+@OWLClass(iri = Vocabulary.s_c_definicni_vyskyt_termu)
 public class TermDefinitionalOccurrence extends TermOccurrence {
 
     public TermDefinitionalOccurrence() {

@@ -1,10 +1,10 @@
 package cz.cvut.kbss.termit.model.assignment;
 
 import cz.cvut.kbss.jopa.model.annotations.*;
-import cz.cvut.kbss.termit.model.resource.VocabularyMock;
+import cz.cvut.kbss.termit.util.Vocabulary;
 
 import java.net.URI;
-@OWLClass(iri = VocabularyMock.s_c_webovy_vyskyt_termu)
+@OWLClass(iri = Vocabulary.s_c_webovy_vyskyt_termu)
 public class TermWebsiteOccurrence extends TermOccurrence  {
 
 
@@ -15,7 +15,7 @@ public class TermWebsiteOccurrence extends TermOccurrence  {
         super(term, target);
     }
 
-    @OWLDataProperty(iri = VocabularyMock.s_p_ma_navrhovane_lemma)
+    @OWLDataProperty(iri = Vocabulary.s_p_ma_navrhovane_lemma)
     private String suggestedLemma;
 
     @Override
