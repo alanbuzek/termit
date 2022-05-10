@@ -24,22 +24,24 @@ import cz.cvut.kbss.termit.model.Vocabulary;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.test.annotation.DirtiesContext;
 
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static cz.cvut.kbss.termit.model.util.EntityToOwlClassMapper.getOwlClassForEntity;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * This class tests the default full text search functionality.
  * <p>
  * Repository-tailored queries stored in corresponding profiles should be used in production.
  */
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
 class SearchDaoTest extends BaseDaoTestRunner {
 
     @Autowired
@@ -61,11 +63,7 @@ class SearchDaoTest extends BaseDaoTestRunner {
 
     @Test
     void defaultFullTextSearchFindsTermsWithMatchingLabel() {
-        final List<Term> terms = generateTerms();
-        transactional(() -> {
-            em.persist(vocabulary);
-            terms.forEach(em::persist);
-        });
+        final List<Term> terms = generateAndPersistTerms();
         final Collection<Term> matching = terms.stream().filter(t -> t.getPrimaryLabel().contains("Matching"))
                                                .collect(Collectors.toList());
 
@@ -75,6 +73,15 @@ class SearchDaoTest extends BaseDaoTestRunner {
             assertTrue(item.getTypes().contains(getOwlClassForEntity(Term.class)));
             assertTrue(matching.stream().anyMatch(t -> t.getUri().equals(item.getUri())));
         }
+    }
+
+    private List<Term> generateAndPersistTerms() {
+        final List<Term> terms = generateTerms();
+        transactional(() -> {
+            em.persist(vocabulary);
+            terms.forEach(em::persist);
+        });
+        return terms;
     }
 
     private List<Term> generateTerms() {
@@ -141,5 +148,34 @@ class SearchDaoTest extends BaseDaoTestRunner {
                 assertTrue(matchingVocabularies.stream().anyMatch(v -> v.getUri().equals(item.getUri())));
             }
         }
+    }
+
+    @Test
+    void defaultFullTextSearchIncludesDraftStatusInResult() {
+        final List<Term> terms = generateTerms();
+        transactional(() -> {
+            em.persist(vocabulary);
+            terms.forEach(t -> {
+                t.setDraft(Generator.randomBoolean());
+                em.persist(t);
+            });
+        });
+        final Collection<Term> matching = terms.stream().filter(t -> t.getPrimaryLabel().contains("Matching"))
+                                               .collect(Collectors.toList());
+
+        final List<FullTextSearchResult> result = sut.fullTextSearch("matching");
+        assertEquals(matching.size(), result.size());
+        for (FullTextSearchResult ftsResult : result) {
+            final Optional<Term> term = matching.stream().filter(t -> t.getUri().equals(ftsResult.getUri())).findFirst();
+            assertTrue(term.isPresent());
+            assertEquals(term.get().isDraft(), ftsResult.isDraft());
+        }
+    }
+
+    @Test
+    void defaultFullTextSearchReturnsEmptyListForEmptyInputString() {
+        generateAndPersistTerms();
+        final List<FullTextSearchResult> result = sut.fullTextSearch("");
+        assertTrue(result.isEmpty());
     }
 }

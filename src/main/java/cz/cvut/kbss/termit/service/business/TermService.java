@@ -370,6 +370,7 @@ public class TermService implements RudService<Term>, ChangeRecordProvider<Term>
      * @param term Term update data
      * @return The updated term
      */
+    @Transactional
     public Term update(Term term) {
         Objects.requireNonNull(term);
         final Term original = repositoryService.findRequired(term.getUri());
@@ -497,13 +498,8 @@ public class TermService implements RudService<Term>, ChangeRecordProvider<Term>
      * @param term   Term to update
      * @param status New status
      */
-    @Transactional
     public void setStatus(Term term, TermStatus status) {
-        Objects.requireNonNull(term);
-        Objects.requireNonNull(status);
-        final Term toUpdate = repositoryService.findRequired(term.getUri());
-        toUpdate.setDraft(status == TermStatus.DRAFT);
-        repositoryService.update(toUpdate);
+        repositoryService.setStatus(term, status);
     }
 
     /**

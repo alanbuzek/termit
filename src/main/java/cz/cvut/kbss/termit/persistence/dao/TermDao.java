@@ -173,7 +173,48 @@ public class TermDao extends AssetDao<Term> {
         }
     }
 
-    private void evictCachedSubTerms(Set<? extends AbstractTerm> originalParents, Set<? extends AbstractTerm> newParents) {
+    /**
+     * Marks the specified term as draft.
+     *
+     * @param term Term to mark as draft
+     */
+    public void setAsDraft(Term term) {
+        Objects.requireNonNull(term);
+        setTermDraftStatusTo(term, true);
+    }
+
+
+    private void setTermDraftStatusTo(Term term, boolean draft) {
+        // Evict possibly cached instance loaded from default context
+        em.getEntityManagerFactory().getCache().evict(Term.class, term.getUri(), null);
+        em.getEntityManagerFactory().getCache().evict(TermDto.class, term.getUri(), null);
+        em.createNativeQuery("DELETE {" +
+                                     "?t ?hasStatus ?oldDraft ." +
+                                     "} INSERT {" +
+                                     "GRAPH ?g {" +
+                                     "?t ?hasStatus ?newDraft ." +
+                                     "}} WHERE {" +
+                                     "OPTIONAL {?t ?hasStatus ?oldDraft .}" +
+                                     "GRAPH ?g {" +
+                                     "?t ?inScheme ?glossary ." +
+                                     "}}").setParameter("t", term)
+          .setParameter("hasStatus", URI.create(cz.cvut.kbss.termit.util.Vocabulary.s_p_je_draft))
+          .setParameter("inScheme", URI.create(SKOS.IN_SCHEME))
+          .setParameter("newDraft", draft).executeUpdate();
+    }
+
+    /**
+     * Marks the specified term as confirmed.
+     *
+     * @param term Term to mark as confirmed
+     */
+    public void setAsConfirmed(Term term) {
+        Objects.requireNonNull(term);
+        setTermDraftStatusTo(term, false);
+    }
+
+    private void evictCachedSubTerms(Set<? extends AbstractTerm> originalParents,
+                                     Set<? extends AbstractTerm> newParents) {
         final Set<AbstractTerm> originalCopy = new HashSet<>(Utils.emptyIfNull(originalParents));
         final Set<AbstractTerm> newCopy = new HashSet<>(Utils.emptyIfNull(newParents));
         originalCopy.removeAll(newCopy);

@@ -16,9 +16,11 @@ package cz.cvut.kbss.termit.service.repository;
 
 import cz.cvut.kbss.jopa.model.MultilingualString;
 import cz.cvut.kbss.termit.dto.TermInfo;
+import cz.cvut.kbss.termit.dto.TermStatus;
 import cz.cvut.kbss.termit.dto.assignment.TermOccurrences;
 import cz.cvut.kbss.termit.dto.listing.TermDto;
 import cz.cvut.kbss.termit.exception.DisabledOperationException;
+import cz.cvut.kbss.termit.exception.NotFoundException;
 import cz.cvut.kbss.termit.exception.TermRemovalException;
 import cz.cvut.kbss.termit.exception.UnsupportedOperationException;
 import cz.cvut.kbss.termit.model.Term;
@@ -40,6 +42,7 @@ import javax.validation.Validator;
 import java.net.URI;
 import java.util.Collection;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 
 import static java.util.stream.Collectors.joining;
@@ -118,6 +121,21 @@ public class TermRepositoryService extends BaseAssetRepositoryService<Term> {
     }
 
     @Transactional
+    public void setStatus(Term term, TermStatus status) {
+        Objects.requireNonNull(term);
+        Objects.requireNonNull(status);
+        final Term toUpdate = termDao.find(term.getUri())
+                                     .orElseThrow(() -> NotFoundException.create(Term.class, term.getUri()));
+
+        termDao.detach(toUpdate);
+        if (status == TermStatus.CONFIRMED) {
+            termDao.setAsConfirmed(toUpdate);
+        } else {
+            termDao.setAsDraft(toUpdate);
+        }
+    }
+
+    @Transactional
     public void addRootTermToVocabulary(Term instance, Vocabulary vocabulary) {
         prepareTermForPersist(instance, vocabulary.getUri());
         instance.setGlossary(vocabulary.getGlossary().getUri());
@@ -190,7 +208,6 @@ public class TermRepositoryService extends BaseAssetRepositoryService<Term> {
      * @return List of full terms ordered by label
      * @see #findAll(Vocabulary)
      */
-    @Transactional(readOnly = true)
     public List<Term> findAllFull(Vocabulary vocabulary) {
         return termDao.findAllFull(vocabulary).stream().map(this::postLoad).collect(toList());
     }

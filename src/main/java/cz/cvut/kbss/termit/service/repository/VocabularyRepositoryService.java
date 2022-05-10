@@ -1,5 +1,6 @@
 package cz.cvut.kbss.termit.service.repository;
 
+import cz.cvut.kbss.termit.dto.AggregatedChangeInfo;
 import cz.cvut.kbss.termit.dto.listing.TermDto;
 import cz.cvut.kbss.termit.exception.AssetRemovalException;
 import cz.cvut.kbss.termit.exception.VocabularyImportException;
@@ -18,6 +19,7 @@ import cz.cvut.kbss.termit.util.Configuration;
 import cz.cvut.kbss.termit.util.Utils;
 import org.apache.tika.Tika;
 import org.apache.tika.metadata.Metadata;
+import org.apache.tika.metadata.TikaCoreProperties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -152,9 +154,10 @@ public class VocabularyRepositoryService extends BaseAssetRepositoryService<Voca
         return changeRecordService.getChanges(asset);
     }
 
+    @Transactional(readOnly = true)
     @Override
-    public List<AbstractChangeRecord> getChangesOfContent(Vocabulary asset) {
-        return vocabularyDao.getChangesOfContent(asset);
+    public List<AggregatedChangeInfo> getChangesOfContent(Vocabulary vocabulary) {
+        return vocabularyDao.getChangesOfContent(vocabulary);
     }
 
     @CacheEvict(allEntries = true)
@@ -164,7 +167,7 @@ public class VocabularyRepositoryService extends BaseAssetRepositoryService<Voca
         Objects.requireNonNull(file);
         try {
             Metadata metadata = new Metadata();
-            metadata.add(Metadata.RESOURCE_NAME_KEY, file.getName());
+            metadata.add(TikaCoreProperties.RESOURCE_NAME_KEY, file.getName());
             metadata.add(Metadata.CONTENT_TYPE, file.getContentType());
             String contentType = new Tika().detect(file.getInputStream(), metadata);
             return getSKOSImporter().importVocabulary(rename,
