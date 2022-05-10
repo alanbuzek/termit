@@ -80,8 +80,6 @@ public class VocabularyRepositoryService extends BaseAssetRepositoryService<Voca
         return vocabularyDao;
     }
 
-//    TODO (alanb): this was causing stale websites/files data being returned, maybe we can still cache it and evict when relevant
-//    @Cacheable
     @Override
     public List<Vocabulary> findAll() {
         return super.findAll();

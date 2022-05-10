@@ -177,7 +177,6 @@ public class HtmlTermOccurrenceResolver extends TermOccurrenceResolver {
         return result;
     }
 
-//  NOTE (alanb): replicate this in the extension
     private Optional<TermOccurrence> resolveAnnotation(List<Element> rdfaElem, Asset<?> source) {
         assert !rdfaElem.isEmpty();
         final String termId = fullIri(rdfaElem.get(0).attr(Constants.RDFa.RESOURCE));

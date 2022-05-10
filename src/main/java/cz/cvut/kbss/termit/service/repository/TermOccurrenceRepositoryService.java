@@ -17,11 +17,19 @@
  */
 package cz.cvut.kbss.termit.service.repository;
 
+import cz.cvut.kbss.termit.dto.TermOccurrenceDTO;
 import cz.cvut.kbss.termit.exception.NotFoundException;
 import cz.cvut.kbss.termit.model.assignment.TermOccurrence;
+import cz.cvut.kbss.termit.model.assignment.TermWebsiteOccurrence;
+import cz.cvut.kbss.termit.model.assignment.WebsiteOccurrenceTarget;
 import cz.cvut.kbss.termit.model.resource.Resource;
+import cz.cvut.kbss.termit.model.resource.Website;
+import cz.cvut.kbss.termit.model.selector.*;
 import cz.cvut.kbss.termit.persistence.dao.TermOccurrenceDao;
+import cz.cvut.kbss.termit.service.IdentifierResolver;
 import cz.cvut.kbss.termit.service.business.TermOccurrenceService;
+import cz.cvut.kbss.termit.util.Configuration;
+import cz.cvut.kbss.termit.util.Vocabulary;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,10 +38,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.net.URI;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.UUID;
 
 import static cz.cvut.kbss.termit.util.Constants.SCHEDULING_PATTERN;
+import static java.util.stream.Collectors.toList;
 
 @Service
 public class TermOccurrenceRepositoryService implements TermOccurrenceService {
@@ -41,10 +52,13 @@ public class TermOccurrenceRepositoryService implements TermOccurrenceService {
     private static final Logger LOG = LoggerFactory.getLogger(TermOccurrenceRepositoryService.class);
 
     private final TermOccurrenceDao termOccurrenceDao;
+    protected final IdentifierResolver idResolver;
 
     @Autowired
-    public TermOccurrenceRepositoryService(TermOccurrenceDao termOccurrenceDao) {
+    public TermOccurrenceRepositoryService(TermOccurrenceDao termOccurrenceDao,
+                                           IdentifierResolver idResolver) {
         this.termOccurrenceDao = termOccurrenceDao;
+        this.idResolver = idResolver;
     }
 
     @Override
@@ -94,14 +108,14 @@ public class TermOccurrenceRepositoryService implements TermOccurrenceService {
 
     @Transactional
     @Override
-    public void removeAllInResource(Resource resource){
-        termOccurrenceDao.removeAllTargetingWebsite(resource);
+    public void removeAllInWebsite(Website website){
+        termOccurrenceDao.removeAllTargetingWebsite(website);
     }
 
     @Transactional
     @Override
-    public void removeAllSuggestionsInResource(Resource resource){
-        termOccurrenceDao.removeAllSuggestionsTargetingWebsite(resource);
+    public void removeAllSuggestionsInWebsite(Website website){
+        termOccurrenceDao.removeAllSuggestionsTargetingWebsite(website);
     }
 
 
@@ -116,4 +130,51 @@ public class TermOccurrenceRepositoryService implements TermOccurrenceService {
         LOG.debug("Executing orphaned term occurrences cleanup.");
         termOccurrenceDao.removeAllOrphans();
     }
+    @Transactional
+    @Override
+    public List<TermWebsiteOccurrence> createWebOccurrences(List<TermOccurrenceDTO> termOccurrenceDTOs, Website website,
+                                                            String contextIri, Configuration.Namespace cfgNamespace){
+        return termOccurrenceDTOs.stream().map(t -> this.createWebOccurrence(t, website, contextIri, cfgNamespace)).collect(toList());
+    }
+
+    @Transactional
+    public TermWebsiteOccurrence createWebOccurrence(TermOccurrenceDTO termOccurrenceDTO, Website website, String contextIri,
+                                              Configuration.Namespace cfgNamespace){
+        URI termUri = null;
+        if (termOccurrenceDTO.getTermFragment() != null && termOccurrenceDTO.getTermNamespace() != null){
+            termUri = idResolver.resolveIdentifier(termOccurrenceDTO.getTermNamespace(), termOccurrenceDTO.getTermFragment());
+        }
+        TermWebsiteOccurrence termWebsiteOccurrence = new TermWebsiteOccurrence();
+        termWebsiteOccurrence.setTerm(termUri);
+        WebsiteOccurrenceTarget websiteOccurrenceTarget = new WebsiteOccurrenceTarget(website);
+        HashSet<Selector> selectors = new HashSet<>();
+        selectors.add(new CssSelector(termOccurrenceDTO.getCssSelector()));
+        selectors.add(new TextQuoteSelector(termOccurrenceDTO.getExactMatch()));
+        selectors.add(new TextPositionSelector(termOccurrenceDTO.getStart(), -1));
+        if (termOccurrenceDTO.getxPathSelector() != null){
+            selectors.add(new XPathSelector(termOccurrenceDTO.getxPathSelector()));
+        }
+        websiteOccurrenceTarget.setSelectors(selectors);
+        termWebsiteOccurrence.setTarget(websiteOccurrenceTarget);
+        termWebsiteOccurrence.addType(Vocabulary.s_c_vyskyt_termu);
+        termWebsiteOccurrence.setUri(idResolver
+                .generateDerivedIdentifier(URI.create(contextIri), cfgNamespace.getTermOccurrence().getSeparator(), this.generateID()));
+
+        if (!termOccurrenceDTO.getExtraTypes().isEmpty()){
+            termWebsiteOccurrence.getTypes().addAll(termOccurrenceDTO.getExtraTypes());
+        }
+        if (termWebsiteOccurrence.getTypes().contains(Vocabulary.s_c_navrzeny_vyskyt_termu) && termOccurrenceDTO.getSuggestedLemma() != null){
+            termWebsiteOccurrence.setSuggestedLemma(termOccurrenceDTO.getSuggestedLemma());
+        }
+
+        this.persist(termWebsiteOccurrence);
+        LOG.debug("TermWebsiteOccurrence created: {}.", termWebsiteOccurrence);
+        return termWebsiteOccurrence;
+    }
+
+    private String generateID() {
+        UUID uuid = UUID.randomUUID();
+        return uuid.toString().substring(0, 8).concat("-");
+    }
+
 }

@@ -1,7 +1,11 @@
 package cz.cvut.kbss.termit.service.business;
 
+import cz.cvut.kbss.termit.dto.TermOccurrenceDTO;
 import cz.cvut.kbss.termit.model.assignment.TermOccurrence;
+import cz.cvut.kbss.termit.model.assignment.TermWebsiteOccurrence;
 import cz.cvut.kbss.termit.model.resource.Resource;
+import cz.cvut.kbss.termit.model.resource.Website;
+import cz.cvut.kbss.termit.util.Configuration;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.net.URI;
@@ -51,8 +55,13 @@ public interface TermOccurrenceService {
 
     List<TermOccurrence> getAllOccurrencesInResource(Resource resource);
 
-    void removeAllInResource(Resource resource);
 
-    //    TODO: add comment
-    void removeAllSuggestionsInResource(Resource resource);
+    @Transactional
+    void removeAllInWebsite(Website website);
+
+    @Transactional
+    void removeAllSuggestionsInWebsite(Website website);
+
+    List<TermWebsiteOccurrence> createWebOccurrences(List<TermOccurrenceDTO> termOccurrenceDTOs, Website website,
+                                              String contextIri, Configuration.Namespace cfgNamespace);
 }

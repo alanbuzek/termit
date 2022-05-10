@@ -217,7 +217,7 @@ public class ResourceController extends BaseController {
                                           @PathVariable String websiteName) {
         final URI fileIdentifier = resolveIdentifier(resourceNamespace(namespace), websiteName);
         final Website website = (Website) resourceService.findRequired(fileIdentifier);
-        termOccurrenceService.removeAllSuggestionsInResource(website);
+        termOccurrenceService.removeAllSuggestionsInWebsite(website);
     }
 
     /**

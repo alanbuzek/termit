@@ -22,7 +22,8 @@ import java.util.List;
 
 public class TermOccurrenceDTO {
 
-    private String selector;
+    private String cssSelector;
+    private String xPathSelector;
     private Integer start;
     private String exactMatch;
     private List<String> extraTypes = new ArrayList<>();
@@ -34,12 +35,20 @@ public class TermOccurrenceDTO {
     public TermOccurrenceDTO() {
     }
 
-    public String getSelector() {
-        return selector;
+    public String getCssSelector() {
+        return cssSelector;
     }
 
-    public void setSelector(String selector) {
-        this.selector = selector;
+    public void setCssSelector(String cssSelector) {
+        this.cssSelector = cssSelector;
+    }
+
+    public String getxPathSelector() {
+        return xPathSelector;
+    }
+
+    public void setxPathSelector(String xPathSelector) {
+        this.xPathSelector = xPathSelector;
     }
 
     public Integer getStart() {

@@ -404,28 +404,6 @@ public class TermController extends BaseController {
         return ResponseEntity.created(createSubTermLocation(newTerm.getUri(), parentIdFragment)).build();
     }
 
-    /**
-     * Creates a new term occurrence for a specified term
-     *
-     * @see #createSubTerm(String, String, Optional, Term)
-     */
-    @PostMapping(value = "/terms/{termIdFragment}/occurrences",
-                 produces = {MediaType.APPLICATION_JSON_VALUE, JsonLd.MEDIA_TYPE})
-    @PreAuthorize("hasRole('" + SecurityConstants.ROLE_FULL_USER + "')")
-    public TermOccurrence createTermOccurrence(@PathVariable("termIdFragment") String parentIdFragment,
-                                              @RequestParam(name = QueryParams.NAMESPACE,
-                                                            required = false) String namespace, @RequestParam(required = false) String resourceNormalizedName) {
-        final URI resourceIdentifier = resolveIdentifier(config.getNamespace().getResource(), resourceNormalizedName);
-        Resource resource =  resourceService.findRequired(resourceIdentifier);
-        final URI termUri = idResolver.resolveIdentifier(namespace, parentIdFragment);
-        final FileOccurrenceTarget target = new FileOccurrenceTarget((File) resource);
-        return new TermFileOccurrence(termUri, target);
-    }
-
-    private String resourceNamespace(Optional<String> namespace) {
-        return namespace.orElse(config.getNamespace().getResource());
-    }
-
     @GetMapping(value = "/vocabularies/{vocabularyIdFragment}/terms/{termIdFragment}/def-related-target", produces = {
             MediaType.APPLICATION_JSON_VALUE,
             JsonLd.MEDIA_TYPE})
@@ -488,6 +466,17 @@ public class TermController extends BaseController {
         final Term term = termService.findRequired(termUri);
         termService.removeTermDefinitionSource(term);
         LOG.debug("Definition source of term {} removed.", term);
+    }
+
+
+    @PostMapping(value = "/terms/definition-source",
+                consumes = {JsonLd.MEDIA_TYPE, MediaType.APPLICATION_JSON_VALUE}, produces = {JsonLd.MEDIA_TYPE, MediaType.APPLICATION_JSON_VALUE})
+    @PreAuthorize("hasRole('" + SecurityConstants.ROLE_FULL_USER + "')")
+    public TermDefinitionSource setUnassignedDefinitionSource(@RequestBody TermDefinitionSource definitionSource) {
+        System.out.println("got to setting definition source: " +  definitionSource);
+        termService.setUnassignedDefinitionSource(definitionSource);
+        LOG.debug("Definition source of unknown term set to {}.", definitionSource);
+        return definitionSource;
     }
 
     @PutMapping(value = "terms/{termIdFragment}/status", consumes = MediaType.ALL_VALUE)

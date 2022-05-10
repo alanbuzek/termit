@@ -280,7 +280,7 @@ public class ResourceService
             }
         }
         repositoryService.remove(website);
-        termOccurrenceService.removeAllInResource(website);
+        termOccurrenceService.removeAllInWebsite(website);
     }
 
     /**
