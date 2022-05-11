@@ -82,10 +82,11 @@ public class TermOccurrenceRepositoryService implements TermOccurrenceService {
     @Override
     public void approve(TermOccurrence occurrence) {
         Objects.requireNonNull(occurrence);
-        final TermOccurrence toApprove = termOccurrenceDao.find(occurrence.getUri()).orElseThrow(
+        termOccurrenceDao.find(occurrence.getUri()).orElseThrow(
                 () -> NotFoundException.create(TermOccurrence.class, occurrence.getUri()));
-        LOG.trace("Approving term occurrence {}", toApprove);
-        toApprove.removeType(cz.cvut.kbss.termit.util.Vocabulary.s_c_navrzeny_vyskyt_termu);
+        LOG.trace("Approving term occurrence {}", occurrence);
+        occurrence.removeType(cz.cvut.kbss.termit.util.Vocabulary.s_c_navrzeny_vyskyt_termu);
+        termOccurrenceDao.update(occurrence);
     }
 
     @Transactional

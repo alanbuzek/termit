@@ -473,7 +473,6 @@ public class TermController extends BaseController {
                 consumes = {JsonLd.MEDIA_TYPE, MediaType.APPLICATION_JSON_VALUE}, produces = {JsonLd.MEDIA_TYPE, MediaType.APPLICATION_JSON_VALUE})
     @PreAuthorize("hasRole('" + SecurityConstants.ROLE_FULL_USER + "')")
     public TermDefinitionSource setUnassignedDefinitionSource(@RequestBody TermDefinitionSource definitionSource) {
-        System.out.println("got to setting definition source: " +  definitionSource);
         termService.setUnassignedDefinitionSource(definitionSource);
         LOG.debug("Definition source of unknown term set to {}.", definitionSource);
         return definitionSource;
