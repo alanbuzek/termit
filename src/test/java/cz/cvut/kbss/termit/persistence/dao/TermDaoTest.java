@@ -1,6 +1,5 @@
 package cz.cvut.kbss.termit.persistence.dao;
 
-import cz.cvut.kbss.jopa.model.EntityManager;
 import cz.cvut.kbss.jopa.model.MultilingualString;
 import cz.cvut.kbss.jopa.model.query.TypedQuery;
 import cz.cvut.kbss.jopa.vocabulary.DC;
@@ -20,7 +19,6 @@ import cz.cvut.kbss.termit.model.changetracking.PersistChangeRecord;
 import cz.cvut.kbss.termit.model.resource.Document;
 import cz.cvut.kbss.termit.model.resource.File;
 import cz.cvut.kbss.termit.model.selector.TextQuoteSelector;
-import cz.cvut.kbss.termit.persistence.DescriptorFactory;
 import cz.cvut.kbss.termit.util.Configuration;
 import cz.cvut.kbss.termit.util.Constants;
 import org.eclipse.rdf4j.common.iteration.Iterations;
@@ -47,27 +45,14 @@ import static org.hamcrest.Matchers.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
-class TermDaoTest extends BaseDaoTestRunner {
-
-    @Autowired
-    private EntityManager em;
-
-    @Autowired
-    private DescriptorFactory descriptorFactory;
-
-    @Autowired
-    private TermDao sut;
+class TermDaoTest extends BaseTermDaoTestRunner {
 
     @Autowired
     private Configuration configuration;
 
-    private Vocabulary vocabulary;
-
     @BeforeEach
     void setUp() {
-        this.vocabulary = Generator.generateVocabulary();
-        vocabulary.setUri(Generator.generateUri());
-        transactional(() -> em.persist(vocabulary, descriptorFactory.vocabularyDescriptor(vocabulary)));
+        super.setUp();
     }
 
     @Test
@@ -1147,9 +1132,7 @@ class TermDaoTest extends BaseDaoTestRunner {
         final Term term = Generator.generateTermWithId(vocabulary.getUri());
         term.setGlossary(vocabulary.getGlossary().getUri());
         term.setParentTerms(Collections.singleton(parent));
-        transactional(() -> {
-            sut.persist(term, vocabulary);
-        });
+        transactional(() -> sut.persist(term, vocabulary));
 
         final List<TermDto> roots = sut.findAllRoots(vocabulary, Constants.DEFAULT_PAGE_SPEC, Collections.emptyList());
         assertEquals(1, roots.size());

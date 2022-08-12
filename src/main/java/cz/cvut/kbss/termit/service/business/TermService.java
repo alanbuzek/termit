@@ -1,5 +1,6 @@
 package cz.cvut.kbss.termit.service.business;
 
+import cz.cvut.kbss.termit.dto.Snapshot;
 import cz.cvut.kbss.termit.dto.TermStatus;
 import cz.cvut.kbss.termit.dto.assignment.TermOccurrences;
 import cz.cvut.kbss.termit.dto.listing.TermDto;
@@ -27,6 +28,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.net.URI;
+import java.time.Instant;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -261,7 +263,14 @@ public class TermService implements RudService<Term>, ChangeRecordProvider<Term>
      * @return Matching term wrapped in an {@code Optional}
      */
     public Optional<Term> find(URI id) {
-        return repositoryService.find(id);
+        final Optional<Term> result = repositoryService.find(id);
+        result.ifPresent(this::consolidateAttributes);
+        return result;
+    }
+
+    private void consolidateAttributes(Term term) {
+        term.consolidateInferred();
+        term.consolidateParents();
     }
 
     /**
@@ -272,7 +281,11 @@ public class TermService implements RudService<Term>, ChangeRecordProvider<Term>
      * @throws NotFoundException When no matching term is found
      */
     public Term findRequired(URI id) {
-        return repositoryService.findRequired(id);
+        final Term result = repositoryService.findRequired(id);
+        if (result != null) {
+            consolidateAttributes(result);
+        }
+        return result;
     }
 
     /**
@@ -305,11 +318,11 @@ public class TermService implements RudService<Term>, ChangeRecordProvider<Term>
     public List<Term> findSubTerms(Term parent) {
         Objects.requireNonNull(parent);
         return parent.getSubTerms() == null ? Collections.emptyList() :
-               parent.getSubTerms().stream().map(u -> repositoryService.find(u.getUri()).orElseThrow(
-                             () -> new NotFoundException(
-                                     "Child of term " + parent + " with id " + u.getUri() + " not found!")))
-                     .sorted(Comparator.comparing((Term t) -> t.getLabel().get(config.getPersistence().getLanguage())))
-                     .collect(Collectors.toList());
+                parent.getSubTerms().stream().map(u -> repositoryService.find(u.getUri()).orElseThrow(
+                              () -> new NotFoundException(
+                                      "Child of term " + parent + " with id " + u.getUri() + " not found!")))
+                      .sorted(Comparator.comparing((Term t) -> t.getLabel().get(config.getPersistence().getLanguage())))
+                      .collect(Collectors.toList());
     }
 
     /**
@@ -519,13 +532,15 @@ public class TermService implements RudService<Term>, ChangeRecordProvider<Term>
     }
 
     /**
-     * Gets comments related to the specified term.
+     * Gets comments related to the specified term created in the specified time interval.
      *
      * @param term Term to get comments for
+     * @param from Retrieval interval start
+     * @param to   Retrieval interval end
      * @return List of comments
      */
-    public List<Comment> getComments(Term term) {
-        return commentService.findAll(term);
+    public List<Comment> getComments(Term term, Instant from, Instant to) {
+        return commentService.findAll(term, from, to);
     }
 
     /**
@@ -538,5 +553,16 @@ public class TermService implements RudService<Term>, ChangeRecordProvider<Term>
         Objects.requireNonNull(comment);
         Objects.requireNonNull(target);
         commentService.addToAsset(comment, target);
+    }
+
+    public List<Snapshot> findSnapshots(Term asset) {
+        return repositoryService.findSnapshots(asset);
+    }
+
+    public Term findVersionValidAt(Term asset, Instant at) {
+        return repositoryService.findVersionValidAt(asset, at).map(t -> {
+            consolidateAttributes(t);
+            return t;
+        }).orElseThrow(() -> new NotFoundException("No version valid at " + at + " exists."));
     }
 }

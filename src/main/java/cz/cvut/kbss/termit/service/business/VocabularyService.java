@@ -16,12 +16,14 @@ package cz.cvut.kbss.termit.service.business;
 
 import cz.cvut.kbss.termit.asset.provenance.SupportsLastModification;
 import cz.cvut.kbss.termit.dto.AggregatedChangeInfo;
+import cz.cvut.kbss.termit.dto.Snapshot;
 import cz.cvut.kbss.termit.model.Vocabulary;
 import cz.cvut.kbss.termit.model.validation.ValidationResult;
 import cz.cvut.kbss.termit.service.changetracking.ChangeRecordProvider;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.net.URI;
+import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 
@@ -40,16 +42,29 @@ public interface VocabularyService
     Collection<URI> getTransitivelyImportedVocabularies(Vocabulary entity);
 
     /**
-     * Imports vocabulary from the specified file.
+     * Imports a new vocabulary from the specified file.
      * <p>
      * The file could be a text file containing RDF.
      *
-     * @param rename        true, if the IRIs should be modified in order to prevent clashes with existing data.
-     * @param vocabularyIri IRI of the vocabulary to be created.
+     * @param rename true, if the IRIs should be modified in order to prevent clashes with existing data
+     * @param file   File from which to import the vocabulary
+     * @return The imported vocabulary metadata
+     * @throws cz.cvut.kbss.termit.exception.importing.VocabularyImportException If the import fails
+     */
+    Vocabulary importVocabulary(boolean rename, MultipartFile file);
+
+    /**
+     * Imports a vocabulary from the specified file.
+     * <p>
+     * The file could be a text file containing RDF. If a vocabulary with the specified identifier already exists, its
+     * content is overridden by the input data.
+     *
+     * @param vocabularyIri IRI of the vocabulary to be created
      * @param file          File from which to import the vocabulary
      * @return The imported vocabulary metadata
+     * @throws cz.cvut.kbss.termit.exception.importing.VocabularyImportException If the import fails
      */
-    Vocabulary importVocabulary(boolean rename, URI vocabularyIri, MultipartFile file);
+    Vocabulary importVocabulary(URI vocabularyIri, MultipartFile file);
 
     /**
      * Gets aggregated information about changes in the specified vocabulary.
@@ -73,19 +88,15 @@ public interface VocabularyService
     void runTextAnalysisOnAllVocabularies();
 
     /**
-     * Removes a vocabulary if:
-     * - it is not a document vocabulary, or
-     * - it is imported by another vocabulary, or
-     * - it contains terms.
+     * Removes a vocabulary if: - it is not a document vocabulary, or - it is imported by another vocabulary, or - it
+     * contains terms.
      *
      * @param asset Vocabulary to remove
      */
     void remove(Vocabulary asset);
 
     /**
-     * Validates a vocabulary:
-     * - it checks glossary rules,
-     * - it checks OntoUml constraints.
+     * Validates a vocabulary: - it checks glossary rules, - it checks OntoUml constraints.
      *
      * @param validate Vocabulary to validate
      */
@@ -100,4 +111,36 @@ public interface VocabularyService
      * @return Number of terms in the vocabulary, 0 for empty or unknown vocabulary
      */
     Integer getTermCount(Vocabulary vocabulary);
+
+    /**
+     * Creates a snapshot of the specified vocabulary.
+     * <p>
+     * The result is a read-only snapshot of the specified vocabulary, its content and any vocabularies it depends on or
+     * that depend on it.
+     *
+     * @param vocabulary Vocabulary to snapshot
+     */
+    Snapshot createSnapshot(Vocabulary vocabulary);
+
+    /**
+     * Finds snapshots of the specified asset.
+     * <p>
+     * Note that the list does not contain the currently active version of the asset, as it is not considered a
+     * snapshot.
+     *
+     * @param asset Asset whose snapshots to find
+     * @return List of snapshots, sorted by date of creation (latest first)
+     */
+    List<Snapshot> findSnapshots(Vocabulary asset);
+
+    /**
+     * Finds a version of the specified asset valid at the specified instant.
+     * <p>
+     * The result may be the current version, in case there is no snapshot matching the instant.
+     *
+     * @param asset Asset whose version to get
+     * @param at    Instant at which the asset should be returned
+     * @return Version of the asset valid at the specified instant
+     */
+    Vocabulary findVersionValidAt(Vocabulary asset, Instant at);
 }

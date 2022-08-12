@@ -17,6 +17,8 @@ package cz.cvut.kbss.termit.util;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 
+import java.time.Instant;
+
 /**
  * Application-wide constants.
  */
@@ -63,11 +65,25 @@ public class Constants {
     public static final Double SCORE_THRESHOLD = 0.49;
 
     /**
+     * Default identifier component for {@link cz.cvut.kbss.termit.model.Model}.
+     * <p>
+     * This component is appended to the containing vocabulary identifier to form the model identifier.
+     */
+    public static final String DEFAULT_MODEL_IRI_COMPONENT = "model";
+
+    /**
      * CRON pattern for executing scheduled actions.
-     *
+     * <p>
      * Indicates that the scheduled actions should be executed at 1:10 every day.
      */
     public static final String SCHEDULING_PATTERN = "0 1 1 * * ?";
+
+    /**
+     * Instant representing the Unix epoch.
+     * <p>
+     * Useful as a default minimum value for timestamp-based calculations.
+     */
+    public static final Instant EPOCH_TIMESTAMP = Instant.EPOCH;
 
     private Constants() {
         throw new AssertionError();
