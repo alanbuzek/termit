@@ -27,6 +27,7 @@ import cz.cvut.kbss.termit.model.changetracking.AbstractChangeRecord;
 import cz.cvut.kbss.termit.model.resource.Document;
 import cz.cvut.kbss.termit.model.resource.File;
 import cz.cvut.kbss.termit.model.resource.Resource;
+import cz.cvut.kbss.termit.model.resource.Website;
 import cz.cvut.kbss.termit.service.changetracking.ChangeRecordProvider;
 import cz.cvut.kbss.termit.service.document.DocumentManager;
 import cz.cvut.kbss.termit.service.document.TextAnalysisService;
@@ -67,15 +68,19 @@ public class ResourceService
 
     private ApplicationEventPublisher eventPublisher;
 
+    private final TermOccurrenceService termOccurrenceService;
+
     @Autowired
     public ResourceService(ResourceRepositoryService repositoryService, DocumentManager documentManager,
                            TextAnalysisService textAnalysisService, VocabularyService vocabularyService,
-                           ChangeRecordService changeRecordService) {
+                           ChangeRecordService changeRecordService,
+                           TermOccurrenceService termOccurrenceService) {
         this.repositoryService = repositoryService;
         this.documentManager = documentManager;
         this.textAnalysisService = textAnalysisService;
         this.vocabularyService = vocabularyService;
         this.changeRecordService = changeRecordService;
+        this.termOccurrenceService = termOccurrenceService;
     }
 
     /**
@@ -204,9 +209,40 @@ public class ResourceService
     }
 
     /**
+     * Adds the specified website to the specified document and persists it.
+     *
+     * @param document Document into which the file should be added
+     * @param website     The file to add and save
+     * @throws UnsupportedAssetOperationException If the specified resource is not a Document
+     */
+    @Transactional
+    public Website addWebsiteToDocument(Resource document, Website website) {
+        Objects.requireNonNull(document);
+        Objects.requireNonNull(website);
+        if (!(document instanceof Document)) {
+            throw new UnsupportedAssetOperationException("Cannot add file to the specified resource " + document);
+        }
+        final Document doc = (Document) document;
+        doc.addWebsite(website);
+        if (doc.getVocabulary() != null) {
+            final Vocabulary vocabulary = vocabularyService.getRequiredReference(doc.getVocabulary());
+            repositoryService.persist(website, vocabulary);
+        } else {
+            repositoryService.persist(website);
+        }
+        if (!getReference(document.getUri()).isPresent()) {
+            repositoryService.persist(document);
+        } else {
+            update(doc);
+        }
+
+        return website;
+    }
+
+    /**
      * Removes the file. The file is detached from the document and removed, together with its content.
      *
-     * @param file The file to add and save
+     * @param file The file to remove
      * @throws UnsupportedAssetOperationException If the specified resource is not a Document
      */
     @Transactional
@@ -223,6 +259,28 @@ public class ResourceService
         }
         documentManager.remove(file);
         repositoryService.remove(file);
+    }
+
+    /**
+     * Removes a website. The website is detached from the document and removed, together with all its associated occurrences.
+     *
+     * @param website The website to remove
+     * @throws UnsupportedAssetOperationException If the specified resource is not a Document
+     */
+    @Transactional
+    public void removeWebsite(Website website) {
+        Objects.requireNonNull(website);
+        final Document doc = website.getDocument();
+        if (doc == null) {
+            throw new InvalidParameterException("Website was not attached to a document.");
+        } else {
+            doc.removeWebsite(website);
+            if (repositoryService.getReference(doc.getUri()).isPresent()) {
+                update(doc);
+            }
+        }
+        repositoryService.remove(website);
+        termOccurrenceService.removeAllInWebsite(website);
     }
 
     /**

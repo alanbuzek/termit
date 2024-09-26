@@ -1,5 +1,6 @@
 package cz.cvut.kbss.termit.service.business.readonly;
 
+import cz.cvut.kbss.termit.dto.Snapshot;
 import cz.cvut.kbss.termit.dto.listing.TermDto;
 import cz.cvut.kbss.termit.dto.readonly.ReadOnlyTerm;
 import cz.cvut.kbss.termit.model.Term;
@@ -14,6 +15,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.net.URI;
+import java.time.Instant;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -68,16 +70,23 @@ public class ReadOnlyTermService {
 
     public List<ReadOnlyTerm> findSubTerms(ReadOnlyTerm parent) {
         Objects.requireNonNull(parent);
-        final Term arg = new Term();
-        arg.setUri(parent.getUri());
+        final Term arg = new Term(parent.getUri());
         if (parent.getSubTerms() != null) {
             arg.setSubTerms(parent.getSubTerms());
         }
         return termService.findSubTerms(arg).stream().map(this::create).collect(Collectors.toList());
     }
 
-    public List<Comment> getComments(Term term) {
-        return termService.getComments(term);
+    /**
+     * Gets comments related to the specified term created in the specified time interval.
+     *
+     * @param term Term to get comments for
+     * @param from Retrieval interval start
+     * @param to   Retrieval interval end
+     * @return List of comments
+     */
+    public List<Comment> getComments(Term term, Instant from, Instant to) {
+        return termService.getComments(term, from, to);
     }
 
     public Term getRequiredReference(URI uri) {
@@ -102,5 +111,17 @@ public class ReadOnlyTermService {
      */
     public List<TermOccurrence> getDefinitionallyRelatedTargeting(Term instance) {
         return termService.getDefinitionallyRelatedTargeting(instance);
+    }
+
+    public List<Snapshot> findSnapshots(ReadOnlyTerm asset) {
+        Objects.requireNonNull(asset);
+        final Term arg = new Term(asset.getUri());
+        return termService.findSnapshots(arg);
+    }
+
+    public ReadOnlyTerm findVersionValidAt(ReadOnlyTerm asset, Instant at) {
+        Objects.requireNonNull(asset);
+        final Term arg = new Term(asset.getUri());
+        return create(termService.findVersionValidAt(arg, at));
     }
 }

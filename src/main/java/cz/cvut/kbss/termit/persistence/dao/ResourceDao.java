@@ -25,6 +25,7 @@ import cz.cvut.kbss.termit.model.User;
 import cz.cvut.kbss.termit.model.resource.Document;
 import cz.cvut.kbss.termit.model.resource.File;
 import cz.cvut.kbss.termit.model.resource.Resource;
+import cz.cvut.kbss.termit.model.resource.Website;
 import cz.cvut.kbss.termit.persistence.DescriptorFactory;
 import cz.cvut.kbss.termit.util.Configuration;
 import cz.cvut.kbss.termit.util.Vocabulary;
@@ -84,7 +85,7 @@ public class ResourceDao extends AssetDao<Resource> implements SupportsLastModif
         final Descriptor descriptor;
         if (resource instanceof Document) {
             descriptor = descriptorFactory.documentDescriptor(vocabularyUri);
-        } else if (resource instanceof File) {
+        } else if (resource instanceof File || resource instanceof Website) {
             descriptor = descriptorFactory.fileDescriptor(vocabularyUri);
         } else {
             throw new IllegalArgumentException(

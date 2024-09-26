@@ -20,7 +20,7 @@ public abstract class TermOccurrence extends AbstractEntity implements HasTypes 
      */
     public static final String CONTEXT_SUFFIX = "occurrences";
 
-    @ParticipationConstraints(nonEmpty = true)
+    @ParticipationConstraints
     @OWLObjectProperty(iri = Vocabulary.s_p_je_prirazenim_termu)
     private URI term;
 

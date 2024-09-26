@@ -26,6 +26,7 @@ import cz.cvut.kbss.termit.exception.PersistenceException;
 import cz.cvut.kbss.termit.model.Asset;
 import cz.cvut.kbss.termit.model.Term;
 import cz.cvut.kbss.termit.model.assignment.TermOccurrence;
+import cz.cvut.kbss.termit.model.resource.Website;
 import cz.cvut.kbss.termit.persistence.dao.util.SparqlResultToTermOccurrenceMapper;
 import cz.cvut.kbss.termit.util.Configuration;
 import cz.cvut.kbss.termit.util.Vocabulary;
@@ -69,7 +70,7 @@ public class TermOccurrenceDao extends BaseDao<TermOccurrence> {
                     "           ?hasEnd ?endPosition ." +
                     "   }" +
                     "}" +
-                    "FILTER (?type = ?fileOccurrence || ?type = ?definitionalOccurrence)" +
+                    "FILTER (?type = ?fileOccurrence || ?type = ?definitionalOccurrence || ?type = ?websiteOccurrence)" +
                     "BIND(EXISTS { ?occ a ?suggestedType . } as ?suggested)" +
                     "} GROUP BY ?occ ?type ?term ?target ?suggested ?selector ?exactMatch ?prefix ?suffix ?startPosition ?endPosition";
 
@@ -89,8 +90,8 @@ public class TermOccurrenceDao extends BaseDao<TermOccurrence> {
     public List<TermOccurrence> findAllOf(Term term) {
         Objects.requireNonNull(term);
         return em.createNativeQuery("SELECT ?x WHERE {" +
-                         "?x a ?type ;" +
-                         "?hasTerm ?term . }", TermOccurrence.class)
+                "?x a ?type ;" +
+                "?hasTerm ?term . }", TermOccurrence.class)
                  .setParameter("type", typeUri)
                  .setParameter("hasTerm", URI.create(Vocabulary.s_p_je_prirazenim_termu))
                  .setParameter("term", term.getUri()).getResultList();
@@ -135,8 +136,57 @@ public class TermOccurrenceDao extends BaseDao<TermOccurrence> {
                               .setParameter("hasEnd", URI.create(Vocabulary.s_p_ma_koncovou_pozici))
                               .setParameter("fileOccurrence", URI.create(Vocabulary.s_c_souborovy_vyskyt_termu))
                               .setParameter("definitionalOccurrence", URI.create(Vocabulary.s_c_definicni_vyskyt_termu))
+                              .setParameter("websiteOccurrence", URI.create(Vocabulary.s_c_webovy_vyskyt_termu))
                               .setParameter("suggestedType", URI.create(Vocabulary.s_c_navrzeny_vyskyt_termu));
         return new SparqlResultToTermOccurrenceMapper(target.getUri()).map(query.getResultList());
+    }
+
+    public List<TermOccurrence> findAllTargetingWebsite(Asset<?> target) {
+        final Query query = em.createNativeQuery("select distinct ?x where {\n" +
+                "  ?x a ?occurrence. \n" +
+                "  ?x ?hasTarget ?target .\n" +
+                "  ?target a ?websiteOccurrenceTarget .\n" +
+                "  ?target ?hasSource ?source\n" +
+                "}", TermOccurrence.class)
+                              .setParameter("websiteOccurrenceTarget", URI.create(Vocabulary.s_c_cil_weboveho_vyskytu))
+                              .setParameter("hasSource", URI.create(Vocabulary.s_p_ma_zdroj))
+                              .setParameter("occurrence", URI.create(Vocabulary.s_c_vyskyt_termu))
+                              .setParameter("hasTarget", URI.create(Vocabulary.s_p_ma_cil))
+                              .setParameter("source", target.getUri());
+
+
+        return query.getResultList();
+    }
+
+    public void removeAllTargetingWebsite(Website target) {
+        em.createNativeQuery("delete where {\n" +
+                "  ?x a ?occurrence. \n" +
+                "  ?x ?hasTarget ?target .\n" +
+                "  ?target a ?websiteOccurrenceTarget .\n" +
+                "  ?target ?hasSource ?source\n" +
+                "}", TermOccurrence.class)
+          .setParameter("websiteOccurrenceTarget", URI.create(Vocabulary.s_c_cil_weboveho_vyskytu))
+          .setParameter("occurrence", URI.create(Vocabulary.s_c_vyskyt_termu))
+          .setParameter("hasTarget", URI.create(Vocabulary.s_p_ma_cil))
+          .setParameter("source", target.getUri())
+          .setParameter("hasSource", URI.create(Vocabulary.s_p_ma_zdroj))
+          .executeUpdate();
+    }
+
+    public void removeAllSuggestionsTargetingWebsite(Website target) {
+        em.createNativeQuery("delete where {\n" +
+                "  ?x a ?suggestedOccurrence .\n" +
+                "  ?x ?hasTarget ?target .\n" +
+                "  ?target a ?websiteOccurrenceTarget .\n" +
+                "  ?target ?hasSource ?source\n" +
+                "}", TermOccurrence.class)
+          .setParameter("websiteOccurrenceTarget", URI.create(Vocabulary.s_c_cil_weboveho_vyskytu))
+          .setParameter("suggestedOccurrence", URI.create(Vocabulary.s_c_navrzeny_vyskyt_termu))
+          .setParameter("hasTarget", URI.create(Vocabulary.s_p_ma_cil))
+          .setParameter("source", target.getUri())
+          .setParameter("hasSource", URI.create(Vocabulary.s_p_ma_zdroj))
+          .setParameter("source", target.getUri())
+          .executeUpdate();
     }
 
     /**
@@ -147,26 +197,26 @@ public class TermOccurrenceDao extends BaseDao<TermOccurrence> {
      */
     public List<TermOccurrences> getOccurrenceInfo(Term term) {
         return em.createNativeQuery("SELECT ?term ?resource ?label (count(?x) as ?cnt) ?type ?suggested WHERE {" +
-                                 "BIND (?t AS ?term)" +
-                                 "{" +
-                                 "  ?x a ?suggestedOccurrence ." +
-                                 "  BIND (true as ?suggested)" +
-                                 "} UNION {" +
-                                 "  ?x a ?occurrence ." +
-                                 "  FILTER NOT EXISTS {" +
-                                 "    ?x a ?suggestedOccurrence ." +
-                                 "  }" +
-                                 "  BIND (false as ?suggested)" +
-                                 "} " +
-                                 "  ?x ?hasTerm ?term ;" +
-                                 "     ?hasTarget ?target . " +
-                                 "  { ?target ?hasSource ?resource . FILTER NOT EXISTS { ?resource a ?fileType . } } " +
-                                 "  UNION { ?target ?hasSource ?file . ?resource ?isDocumentOf ?file . } " +
-                                 "BIND (IF(EXISTS { ?resource a ?termType }, ?termDefOcc, ?fileOcc) as ?type)" +
-                                 "{ ?resource rdfs:label ?label . } UNION { ?resource ?hasTitle ?label . } " +
-                                 "FILTER langMatches(lang(?label), ?lang)" +
-                                 "} GROUP BY ?resource ?term ?label ?type ?suggested HAVING (?cnt > 0) ORDER BY ?label",
-                         "TermOccurrences")
+                        "BIND (?t AS ?term)" +
+                        "{" +
+                        "  ?x a ?suggestedOccurrence ." +
+                        "  BIND (true as ?suggested)" +
+                        "} UNION {" +
+                        "  ?x a ?occurrence ." +
+                        "  FILTER NOT EXISTS {" +
+                        "    ?x a ?suggestedOccurrence ." +
+                        "  }" +
+                        "  BIND (false as ?suggested)" +
+                        "} " +
+                        "  ?x ?hasTerm ?term ;" +
+                        "     ?hasTarget ?target . " +
+                        "  { ?target ?hasSource ?resource . FILTER NOT EXISTS { ?resource a ?fileType . } } " +
+                        "  UNION { ?target ?hasSource ?file . ?resource ?isDocumentOf ?file . } " +
+                        "BIND (IF(EXISTS { ?resource a ?termType }, ?termDefOcc, ?fileOcc) as ?type)" +
+                        "{ ?resource rdfs:label ?label . } UNION { ?resource ?hasTitle ?label . } " +
+                        "FILTER langMatches(lang(?label), ?lang)" +
+                        "} GROUP BY ?resource ?term ?label ?type ?suggested HAVING (?cnt > 0) ORDER BY ?label",
+                "TermOccurrences")
                  .setParameter("suggestedOccurrence", URI.create(Vocabulary.s_c_navrzeny_vyskyt_termu))
                  .setParameter("hasTerm", URI.create(Vocabulary.s_p_je_prirazenim_termu))
                  .setParameter("hasTarget", URI.create(Vocabulary.s_p_ma_cil))
@@ -210,14 +260,14 @@ public class TermOccurrenceDao extends BaseDao<TermOccurrence> {
 
     private void removeAll(URI assetUri, URI toType) {
         em.createNativeQuery("DELETE WHERE {" +
-                  "?x a ?toType ;" +
-                  "?hasTarget ?target ;" +
-                  "?y ?z ." +
-                  "?target a ?occurrenceTarget ;" +
-                  "?hasSelector ?selector ;" +
-                  "?hasSource ?asset ." +
-                  "?target ?tY ?tZ ." +
-                  "?selector ?sY ?sZ . }")
+                "?x a ?toType ;" +
+                "?hasTarget ?target ;" +
+                "?y ?z ." +
+                "?target a ?occurrenceTarget ;" +
+                "?hasSelector ?selector ;" +
+                "?hasSource ?asset ." +
+                "?target ?tY ?tZ ." +
+                "?selector ?sY ?sZ . }")
           .setParameter("toType", toType)
           .setParameter("hasTarget", URI.create(Vocabulary.s_p_ma_cil))
           .setParameter("occurrenceTarget", URI.create(Vocabulary.s_c_cil_vyskytu))
@@ -249,21 +299,21 @@ public class TermOccurrenceDao extends BaseDao<TermOccurrence> {
      */
     public void removeAllOrphans() {
         em.createNativeQuery("SELECT DISTINCT ?source WHERE {" +
-                  "?t a ?target ;" +
-                  "?hasSource ?source ." +
-                  // If an asset does not have a label, it does not exist
-                  "FILTER NOT EXISTS { " +
-                  "{ ?source ?hasLabel ?label . } " +
-                  "UNION" +
-                  "{ ?source ?hasTitle ?label . } " +
-                  "}}", URI.class)
+                "?t a ?target ;" +
+                "?hasSource ?source ." +
+                // If an asset does not have a label, it does not exist
+                "FILTER NOT EXISTS { " +
+                "{ ?source ?hasLabel ?label . } " +
+                "UNION" +
+                "{ ?source ?hasTitle ?label . } " +
+                "}}", URI.class)
           .setParameter("target", URI.create(Vocabulary.s_c_cil_vyskytu))
           .setParameter("hasSource", URI.create(Vocabulary.s_p_ma_zdroj))
           .setParameter("hasLabel", URI.create(RDFS.LABEL))
           .setParameter("hasTitle", URI.create(DC.Terms.TITLE))
           .getResultStream().forEach(a -> {
-              LOG.trace("Removing orphaned term occurrences targeting <{}>.", a);
-              removeAll(a, URI.create(Vocabulary.s_c_vyskyt_termu));
-          });
+            LOG.trace("Removing orphaned term occurrences targeting <{}>.", a);
+            removeAll(a, URI.create(Vocabulary.s_c_vyskyt_termu));
+        });
     }
 }

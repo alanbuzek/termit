@@ -21,11 +21,14 @@ import cz.cvut.kbss.jsonld.JsonLd;
 import cz.cvut.kbss.termit.exception.TermItException;
 import cz.cvut.kbss.termit.model.TextAnalysisRecord;
 import cz.cvut.kbss.termit.model.changetracking.AbstractChangeRecord;
+import cz.cvut.kbss.termit.model.resource.Document;
 import cz.cvut.kbss.termit.model.resource.File;
 import cz.cvut.kbss.termit.model.resource.Resource;
+import cz.cvut.kbss.termit.model.resource.Website;
 import cz.cvut.kbss.termit.security.SecurityConstants;
 import cz.cvut.kbss.termit.service.IdentifierResolver;
 import cz.cvut.kbss.termit.service.business.ResourceService;
+import cz.cvut.kbss.termit.service.business.TermOccurrenceService;
 import cz.cvut.kbss.termit.util.Configuration;
 import cz.cvut.kbss.termit.util.Constants.QueryParams;
 import cz.cvut.kbss.termit.util.TypeAwareResource;
@@ -53,11 +56,14 @@ public class ResourceController extends BaseController {
     private static final Logger LOG = LoggerFactory.getLogger(ResourceController.class);
 
     private final ResourceService resourceService;
+    private final TermOccurrenceService termOccurrenceService;
 
     @Autowired
-    public ResourceController(IdentifierResolver idResolver, Configuration config, ResourceService resourceService) {
+    public ResourceController(IdentifierResolver idResolver, Configuration config, ResourceService resourceService,
+                              TermOccurrenceService termOccurrenceService) {
         super(idResolver, config);
         this.resourceService = resourceService;
+        this.termOccurrenceService = termOccurrenceService;
     }
 
     @GetMapping(value = "/{normalizedName}", produces = {MediaType.APPLICATION_JSON_VALUE, JsonLd.MEDIA_TYPE})
@@ -157,6 +163,20 @@ public class ResourceController extends BaseController {
         return ResponseEntity.created(createFileLocation(file.getUri(), normalizedName)).build();
     }
 
+    @PostMapping(value = "/{normalizedName}/websites")
+    @PreAuthorize("hasRole('" + SecurityConstants.ROLE_FULL_USER + "')")
+    public ResponseEntity<Void> addWebsiteToDocument(@PathVariable String normalizedName,
+                                                  @RequestParam(name = QueryParams.NAMESPACE,
+                                                                required = false) Optional<String> namespace
+                                                  ,@RequestBody Website website
+    )  {
+        final URI identifier = resolveIdentifier(resourceNamespace(namespace), normalizedName);
+        Document document = (Document) resourceService.findRequired(identifier);
+        website.setDocument(document);
+        resourceService.addWebsiteToDocument(document, website);
+        return ResponseEntity.created(createFileLocation(website.getUri(), normalizedName)).build();
+    }
+
     private URI createFileLocation(URI childUri, String parentIdFragment) {
         final String u = generateLocation(childUri, config.getNamespace().getResource()).toString();
         return URI.create(u.replace("/" + parentIdFragment + "/files", ""));
@@ -173,6 +193,31 @@ public class ResourceController extends BaseController {
         final File file = (File) resourceService.findRequired(fileIdentifier);
         resourceService.removeFile(file);
         LOG.debug("File {} successfully removed.", fileIdentifier);
+    }
+
+    @DeleteMapping(value = "/{resourceName}/websites/{websiteName}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize("hasRole('" + SecurityConstants.ROLE_FULL_USER + "')")
+    public void removeWebsiteFromDocument(@PathVariable String resourceName,
+                                       @RequestParam(name = QueryParams.NAMESPACE,
+                                                     required = false) Optional<String> namespace,
+                                       @PathVariable String websiteName) {
+        final URI fileIdentifier = resolveIdentifier(resourceNamespace(namespace), websiteName);
+        final Website website = (Website) resourceService.findRequired(fileIdentifier);
+        resourceService.removeWebsite(website);
+        LOG.debug("Website {} successfully removed.", fileIdentifier);
+    }
+
+    @DeleteMapping(value = "/{resourceName}/websites/{websiteName}/suggestions")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize("hasRole('" + SecurityConstants.ROLE_FULL_USER + "')")
+    public void removeOccurrenceSuggestionsFromDocument(@PathVariable String resourceName,
+                                          @RequestParam(name = QueryParams.NAMESPACE,
+                                                        required = false) Optional<String> namespace,
+                                          @PathVariable String websiteName) {
+        final URI fileIdentifier = resolveIdentifier(resourceNamespace(namespace), websiteName);
+        final Website website = (Website) resourceService.findRequired(fileIdentifier);
+        termOccurrenceService.removeAllSuggestionsInWebsite(website);
     }
 
     /**

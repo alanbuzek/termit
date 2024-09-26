@@ -42,6 +42,10 @@ public class Document extends Resource implements SupportsStorage {
     @OWLObjectProperty(iri = Vocabulary.s_p_ma_soubor, fetch = FetchType.EAGER)
     private Set<File> files;
 
+    @JsonManagedReference
+    @OWLObjectProperty(iri = Vocabulary.s_p_ma_webovou_stranku, fetch = FetchType.EAGER)
+    private Set<Website> websites;
+
     @Inferred
     @OWLObjectProperty(iri = Vocabulary.s_p_ma_dokumentovy_slovnik)
     private URI vocabulary;
@@ -65,6 +69,28 @@ public class Document extends Resource implements SupportsStorage {
     public void removeFile(File file) {
         if (files != null) {
             files.remove(file);
+        }
+    }
+
+    public Set<Website> getWebsites() {
+        return websites;
+    }
+
+    public void setWebsites(Set<Website> websites) {
+        this.websites = websites;
+    }
+
+    public void addWebsite(Website website) {
+        Objects.requireNonNull(website);
+        if (websites == null) {
+            websites = new HashSet<>();
+        }
+        websites.add(website);
+    }
+
+    public void removeWebsite(Website website) {
+        if (websites != null) {
+            websites.remove(website);
         }
     }
 

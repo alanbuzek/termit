@@ -138,6 +138,20 @@ public class IdentifierResolver {
         return URI.create(namespace + normalize(comps));
     }
 
+    public URI generateWebsiteIdentifier(String namespace, String... components) {
+        Objects.requireNonNull(namespace);
+        if (components.length == 0) {
+            throw new IllegalArgumentException("Must provide at least one component for identifier generation.");
+        }
+        final String comps = String.join("-", components);
+
+        Objects.requireNonNull(namespace);
+        if (!namespace.endsWith("/") && !namespace.endsWith("#")) {
+            namespace += "/";
+        }
+        return URI.create(namespace + normalize(comps));
+    }
+
     private static boolean isUri(String value) {
         try {
             if (!value.matches("^(https?|ftp|file)://.+")) {
@@ -153,9 +167,10 @@ public class IdentifierResolver {
     /**
      * Generates term identifier of a dependent asset, appending a normalized string consisting of the specified
      * components to a namespace which is derived from baseUri by appending namespace separator defined by
-     * namespaceSeparatorConfig.
+     * namespaceSeparator.
      *
-     * @param baseUri Configuration parameter for namespace
+     * @param baseUri Base identifier namespace
+     * @param namespaceSeparator Separator to add to {@code baseUri} before {@code label}
      * @param label   Components to normalize and add to the identifier
      * @return Generated identifier
      */

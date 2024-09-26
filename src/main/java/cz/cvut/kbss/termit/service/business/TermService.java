@@ -1,5 +1,6 @@
 package cz.cvut.kbss.termit.service.business;
 
+import cz.cvut.kbss.termit.dto.Snapshot;
 import cz.cvut.kbss.termit.dto.TermStatus;
 import cz.cvut.kbss.termit.dto.assignment.TermOccurrences;
 import cz.cvut.kbss.termit.dto.listing.TermDto;
@@ -27,6 +28,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.net.URI;
+import java.time.Instant;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -316,11 +318,11 @@ public class TermService implements RudService<Term>, ChangeRecordProvider<Term>
     public List<Term> findSubTerms(Term parent) {
         Objects.requireNonNull(parent);
         return parent.getSubTerms() == null ? Collections.emptyList() :
-               parent.getSubTerms().stream().map(u -> repositoryService.find(u.getUri()).orElseThrow(
-                             () -> new NotFoundException(
-                                     "Child of term " + parent + " with id " + u.getUri() + " not found!")))
-                     .sorted(Comparator.comparing((Term t) -> t.getLabel().get(config.getPersistence().getLanguage())))
-                     .collect(Collectors.toList());
+                parent.getSubTerms().stream().map(u -> repositoryService.find(u.getUri()).orElseThrow(
+                              () -> new NotFoundException(
+                                      "Child of term " + parent + " with id " + u.getUri() + " not found!")))
+                      .sorted(Comparator.comparing((Term t) -> t.getLabel().get(config.getPersistence().getLanguage())))
+                      .collect(Collectors.toList());
     }
 
     /**
@@ -358,8 +360,7 @@ public class TermService implements RudService<Term>, ChangeRecordProvider<Term>
         Objects.requireNonNull(term);
         Objects.requireNonNull(owner);
         repositoryService.addRootTermToVocabulary(term, owner);
-        analyzeTermDefinition(term, owner.getUri());
-        vocabularyService.runTextAnalysisOnAllTerms(owner);
+//        analyzeTermDefinition(term, owner.getUri());
     }
 
     /**
@@ -372,7 +373,7 @@ public class TermService implements RudService<Term>, ChangeRecordProvider<Term>
         Objects.requireNonNull(child);
         Objects.requireNonNull(parent);
         repositoryService.addChildTerm(child, parent);
-        analyzeTermDefinition(child, parent.getVocabulary());
+//        analyzeTermDefinition(child, parent.getVocabulary());
         vocabularyService.runTextAnalysisOnAllTerms(getRequiredVocabularyReference(parent.getVocabulary()));
     }
 
@@ -386,14 +387,16 @@ public class TermService implements RudService<Term>, ChangeRecordProvider<Term>
     public Term update(Term term) {
         Objects.requireNonNull(term);
         final Term original = repositoryService.findRequired(term.getUri());
+        System.out.println("original: " + original.getDefinition());
+        System.out.println("new: " + term.getDefinition());
         if (!Objects.equals(original.getDefinition(), term.getDefinition())) {
-            analyzeTermDefinition(term, term.getVocabulary());
+//            analyzeTermDefinition(term, term.getVocabulary());
         }
         final Term result = repositoryService.update(term);
         // Ensure the change is merged into the repo before analyzing other terms
-        if (!Objects.equals(original.getLabel(), term.getLabel())) {
-            vocabularyService.runTextAnalysisOnAllTerms(getRequiredVocabularyReference(original.getVocabulary()));
-        }
+//        if (!Objects.equals(original.getLabel(), term.getLabel())) {
+//            vocabularyService.runTextAnalysisOnAllTerms(getRequiredVocabularyReference(original.getVocabulary()));
+//        }
         return result;
     }
 
@@ -454,7 +457,7 @@ public class TermService implements RudService<Term>, ChangeRecordProvider<Term>
      * @param definitionSource Definition source representation
      */
     @Transactional
-    public void setTermDefinitionSource(Term term, TermDefinitionSource definitionSource) {
+    public TermDefinitionSource setTermDefinitionSource(Term term, TermDefinitionSource definitionSource) {
         Objects.requireNonNull(term);
         Objects.requireNonNull(definitionSource);
         definitionSource.setTerm(term.getUri());
@@ -462,7 +465,26 @@ public class TermService implements RudService<Term>, ChangeRecordProvider<Term>
         if (existingTerm.getDefinitionSource() != null) {
             termOccurrenceService.remove(existingTerm.getDefinitionSource());
         }
+        definitionSource.getTypes().add(cz.cvut.kbss.termit.util.Vocabulary.s_c_vyskyt_termu);
         termOccurrenceService.persist(definitionSource);
+
+        return definitionSource;
+    }
+
+
+    /**
+     * Sets the definition source of an unknown term
+     * <p>
+     *
+     * @param definitionSource Definition source representation
+     */
+    @Transactional
+    public TermDefinitionSource setUnassignedDefinitionSource(TermDefinitionSource definitionSource) {
+        Objects.requireNonNull(definitionSource);
+        definitionSource.getTypes().add(cz.cvut.kbss.termit.util.Vocabulary.s_c_vyskyt_termu);
+        termOccurrenceService.persist(definitionSource);
+
+        return definitionSource;
     }
 
     /**
@@ -510,13 +532,15 @@ public class TermService implements RudService<Term>, ChangeRecordProvider<Term>
     }
 
     /**
-     * Gets comments related to the specified term.
+     * Gets comments related to the specified term created in the specified time interval.
      *
      * @param term Term to get comments for
+     * @param from Retrieval interval start
+     * @param to   Retrieval interval end
      * @return List of comments
      */
-    public List<Comment> getComments(Term term) {
-        return commentService.findAll(term);
+    public List<Comment> getComments(Term term, Instant from, Instant to) {
+        return commentService.findAll(term, from, to);
     }
 
     /**
@@ -529,5 +553,16 @@ public class TermService implements RudService<Term>, ChangeRecordProvider<Term>
         Objects.requireNonNull(comment);
         Objects.requireNonNull(target);
         commentService.addToAsset(comment, target);
+    }
+
+    public List<Snapshot> findSnapshots(Term asset) {
+        return repositoryService.findSnapshots(asset);
+    }
+
+    public Term findVersionValidAt(Term asset, Instant at) {
+        return repositoryService.findVersionValidAt(asset, at).map(t -> {
+            consolidateAttributes(t);
+            return t;
+        }).orElseThrow(() -> new NotFoundException("No version valid at " + at + " exists."));
     }
 }

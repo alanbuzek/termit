@@ -1,9 +1,11 @@
 package cz.cvut.kbss.termit.service.repository;
 
 import cz.cvut.kbss.termit.dto.AggregatedChangeInfo;
+import cz.cvut.kbss.termit.dto.Snapshot;
 import cz.cvut.kbss.termit.dto.listing.TermDto;
 import cz.cvut.kbss.termit.exception.AssetRemovalException;
-import cz.cvut.kbss.termit.exception.VocabularyImportException;
+import cz.cvut.kbss.termit.exception.NotFoundException;
+import cz.cvut.kbss.termit.exception.importing.VocabularyImportException;
 import cz.cvut.kbss.termit.model.Glossary;
 import cz.cvut.kbss.termit.model.Model;
 import cz.cvut.kbss.termit.model.Vocabulary;
@@ -12,10 +14,12 @@ import cz.cvut.kbss.termit.model.validation.ValidationResult;
 import cz.cvut.kbss.termit.persistence.dao.AssetDao;
 import cz.cvut.kbss.termit.persistence.dao.VocabularyDao;
 import cz.cvut.kbss.termit.persistence.dao.skos.SKOSImporter;
+import cz.cvut.kbss.termit.persistence.snapshot.SnapshotCreator;
 import cz.cvut.kbss.termit.service.IdentifierResolver;
 import cz.cvut.kbss.termit.service.business.TermService;
 import cz.cvut.kbss.termit.service.business.VocabularyService;
 import cz.cvut.kbss.termit.util.Configuration;
+import cz.cvut.kbss.termit.util.Constants;
 import cz.cvut.kbss.termit.util.Utils;
 import org.apache.tika.Tika;
 import org.apache.tika.metadata.Metadata;
@@ -34,7 +38,9 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import javax.validation.Validator;
+import java.io.IOException;
 import java.net.URI;
+import java.time.Instant;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -52,7 +58,7 @@ public class VocabularyRepositoryService extends BaseAssetRepositoryService<Voca
 
     private final ChangeRecordService changeRecordService;
 
-    private final Configuration.Namespace config;
+    private final Configuration config;
 
     private final ApplicationContext context;
 
@@ -67,7 +73,7 @@ public class VocabularyRepositoryService extends BaseAssetRepositoryService<Voca
         this.idResolver = idResolver;
         this.termService = termService;
         this.changeRecordService = changeRecordService;
-        this.config = config.getNamespace();
+        this.config = config;
     }
 
     /**
@@ -82,7 +88,6 @@ public class VocabularyRepositoryService extends BaseAssetRepositoryService<Voca
         return vocabularyDao;
     }
 
-    @Cacheable
     @Override
     public List<Vocabulary> findAll() {
         return super.findAll();
@@ -98,18 +103,25 @@ public class VocabularyRepositoryService extends BaseAssetRepositoryService<Voca
     protected void prePersist(Vocabulary instance) {
         super.prePersist(instance);
         if (instance.getUri() == null) {
-            instance.setUri(idResolver.generateIdentifier(config.getVocabulary(),
-                    instance.getLabel()));
+            instance.setUri(idResolver.generateIdentifier(config.getNamespace().getVocabulary(),
+                                                          instance.getLabel()));
         }
         verifyIdentifierUnique(instance);
-        if (instance.getGlossary() == null) {
-            instance.setGlossary(new Glossary());
-        }
-        if (instance.getModel() == null) {
-            instance.setModel(new Model());
-        }
+        initGlossaryAndModel(instance);
         if (instance.getDocument() != null) {
             instance.getDocument().setVocabulary(null);
+        }
+    }
+
+    private void initGlossaryAndModel(Vocabulary vocabulary) {
+        final String iriBase = vocabulary.getUri().toString();
+        if (vocabulary.getGlossary() == null) {
+            vocabulary.setGlossary(new Glossary());
+            vocabulary.getGlossary().setUri(idResolver.generateIdentifier(iriBase, config.getGlossary().getFragment()));
+        }
+        if (vocabulary.getModel() == null) {
+            vocabulary.setModel(new Model());
+            vocabulary.getModel().setUri(idResolver.generateIdentifier(iriBase, Constants.DEFAULT_MODEL_IRI_COMPONENT));
         }
     }
 
@@ -140,8 +152,8 @@ public class VocabularyRepositoryService extends BaseAssetRepositoryService<Voca
                 Collectors.toSet());
         if (!invalid.isEmpty()) {
             throw new VocabularyImportException("Cannot remove imports of vocabularies " + invalid +
-                    ", there are still relationships between terms.",
-                    "error.vocabulary.update.imports.danglingTermReferences");
+                                                        ", there are still relationships between terms.",
+                                                "error.vocabulary.update.imports.danglingTermReferences");
         }
     }
 
@@ -164,19 +176,33 @@ public class VocabularyRepositoryService extends BaseAssetRepositoryService<Voca
     @CacheEvict(allEntries = true)
     @Transactional
     @Override
-    public Vocabulary importVocabulary(boolean rename, URI vocabularyIri, MultipartFile file) {
+    public Vocabulary importVocabulary(boolean rename, MultipartFile file) {
         Objects.requireNonNull(file);
         try {
-            Metadata metadata = new Metadata();
-            metadata.add(TikaCoreProperties.RESOURCE_NAME_KEY, file.getName());
-            metadata.add(Metadata.CONTENT_TYPE, file.getContentType());
-            String contentType = new Tika().detect(file.getInputStream(), metadata);
-            return getSKOSImporter().importVocabulary(rename,
-                    vocabularyIri,
-                    contentType,
-                    this::persist,
-                    file.getInputStream()
-            );
+            String contentType = resolveContentType(file);
+            return getSKOSImporter().importVocabulary(rename, contentType, this::persist, file.getInputStream());
+        } catch (VocabularyImportException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new VocabularyImportException("Unable to import vocabulary, because of: " + e.getMessage());
+        }
+    }
+
+    private String resolveContentType(MultipartFile file) throws IOException {
+        Metadata metadata = new Metadata();
+        metadata.add(TikaCoreProperties.RESOURCE_NAME_KEY, file.getName());
+        metadata.add(Metadata.CONTENT_TYPE, file.getContentType());
+        return new Tika().detect(file.getInputStream(), metadata);
+    }
+
+    @CacheEvict(allEntries = true)
+    @Transactional
+    @Override
+    public Vocabulary importVocabulary(URI vocabularyIri, MultipartFile file) {
+        Objects.requireNonNull(file);
+        try {
+            String contentType = resolveContentType(file);
+            return getSKOSImporter().importVocabulary(vocabularyIri, contentType, this::persist, file.getInputStream());
         } catch (VocabularyImportException e) {
             throw e;
         } catch (Exception e) {
@@ -239,5 +265,25 @@ public class VocabularyRepositoryService extends BaseAssetRepositoryService<Voca
     @Override
     public Integer getTermCount(Vocabulary vocabulary) {
         return vocabularyDao.getTermCount(vocabulary);
+    }
+
+    @Override
+    public Snapshot createSnapshot(Vocabulary vocabulary) {
+        return getSnapshotCreator().createSnapshot(vocabulary);
+    }
+
+    private SnapshotCreator getSnapshotCreator() {
+        return context.getBean(SnapshotCreator.class);
+    }
+
+    @Transactional(readOnly = true)
+    public List<Snapshot> findSnapshots(Vocabulary vocabulary) {
+        return vocabularyDao.findSnapshots(vocabulary);
+    }
+
+    @Transactional(readOnly = true)
+    public Vocabulary findVersionValidAt(Vocabulary vocabulary, Instant at) {
+        return vocabularyDao.findVersionValidAt(vocabulary, at)
+                            .orElseThrow(() -> new NotFoundException("No version valid at " + at + " exists."));
     }
 }

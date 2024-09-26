@@ -16,9 +16,11 @@ package cz.cvut.kbss.termit.rest;
 
 import cz.cvut.kbss.jsonld.JsonLd;
 import cz.cvut.kbss.termit.dto.AggregatedChangeInfo;
+import cz.cvut.kbss.termit.dto.Snapshot;
 import cz.cvut.kbss.termit.model.Vocabulary;
 import cz.cvut.kbss.termit.model.changetracking.AbstractChangeRecord;
 import cz.cvut.kbss.termit.model.validation.ValidationResult;
+import cz.cvut.kbss.termit.rest.util.RestUtils;
 import cz.cvut.kbss.termit.security.SecurityConstants;
 import cz.cvut.kbss.termit.service.IdentifierResolver;
 import cz.cvut.kbss.termit.service.business.VocabularyService;
@@ -36,6 +38,7 @@ import org.springframework.web.context.request.ServletWebRequest;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.net.URI;
+import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -68,8 +71,7 @@ public class VocabularyController extends BaseController {
     public ResponseEntity<Void> createVocabulary(@RequestBody Vocabulary vocabulary) {
         vocabularyService.persist(vocabulary);
         LOG.debug("Vocabulary {} created.", vocabulary);
-        return ResponseEntity.created(generateLocation(vocabulary.getUri(), config.getNamespace().getVocabulary()))
-                             .build();
+        return ResponseEntity.created(generateLocation(vocabulary.getUri())).build();
     }
 
     @GetMapping(value = "/{fragment}", produces = {MediaType.APPLICATION_JSON_VALUE, JsonLd.MEDIA_TYPE})
@@ -101,11 +103,13 @@ public class VocabularyController extends BaseController {
     @PreAuthorize("hasRole('" + SecurityConstants.ROLE_FULL_USER + "')")
     public ResponseEntity<Void> createVocabulary(@RequestParam(name = "file") MultipartFile file,
                                                  @RequestParam(name = "rename") boolean rename) {
-        final Vocabulary vocabulary = vocabularyService.importVocabulary(rename, null, file);
+        final Vocabulary vocabulary = vocabularyService.importVocabulary(rename, file);
         LOG.debug("New vocabulary {} imported.", vocabulary);
-        final URI location = generateLocation(vocabulary.getUri(), config.getNamespace().getVocabulary());
-        final String adjustedLocation = location.toString().replace("/import/", "/");
-        return ResponseEntity.created(URI.create(adjustedLocation)).build();
+        return ResponseEntity.created(locationWithout(generateLocation(vocabulary.getUri()), "/import")).build();
+    }
+
+    URI locationWithout(URI location, String toRemove) {
+        return URI.create(location.toString().replace(toRemove, ""));
     }
 
     /**
@@ -120,15 +124,12 @@ public class VocabularyController extends BaseController {
     public ResponseEntity<Void> createVocabulary(@PathVariable String fragment,
                                                  @RequestParam(name = QueryParams.NAMESPACE,
                                                                required = false) Optional<String> namespace,
-                                                 @RequestParam(name = "rename", required = false,
-                                                               defaultValue = "false") boolean rename,
                                                  @RequestParam(name = "file") MultipartFile file) {
         final URI vocabularyIri = resolveVocabularyUri(fragment, namespace);
-        final Vocabulary vocabulary = vocabularyService.importVocabulary(rename, vocabularyIri, file);
+        final Vocabulary vocabulary = vocabularyService.importVocabulary(vocabularyIri, file);
         LOG.debug("Vocabulary {} re-imported.", vocabulary);
-        final URI location = generateLocation(vocabulary.getUri(), config.getNamespace().getVocabulary());
-        final String adjustedLocation = location.toString().replace("/import/", "/");
-        return ResponseEntity.created(URI.create(adjustedLocation)).build();
+        return ResponseEntity.created(locationWithout(generateLocation(vocabulary.getUri()), "/import/" + fragment))
+                             .build();
     }
 
     private URI resolveVocabularyUri(String fragment, Optional<String> namespace) {
@@ -237,5 +238,32 @@ public class VocabularyController extends BaseController {
         final URI identifier = resolveIdentifier(namespace.orElse(config.getNamespace().getVocabulary()), fragment);
         final Vocabulary vocabulary = vocabularyService.getRequiredReference(identifier);
         return vocabularyService.validateContents(vocabulary);
+    }
+
+    @PostMapping("/{fragment}/versions")
+    @PreAuthorize("hasRole('" + SecurityConstants.ROLE_FULL_USER + "')")
+    public ResponseEntity<Void> createSnapshot(@PathVariable String fragment,
+                                               @RequestParam(name = QueryParams.NAMESPACE,
+                                                             required = false) Optional<String> namespace) {
+        final URI identifier = resolveIdentifier(namespace.orElse(config.getNamespace().getVocabulary()), fragment);
+        final Vocabulary vocabulary = vocabularyService.getRequiredReference(identifier);
+        final Snapshot snapshot = vocabularyService.createSnapshot(vocabulary);
+        LOG.debug("Created snapshot of vocabulary {}.", vocabulary);
+        return ResponseEntity.created(
+                locationWithout(generateLocation(snapshot.getUri()), "/" + fragment + "/versions")).build();
+    }
+
+    @GetMapping(value = "/{fragment}/versions", produces = {MediaType.APPLICATION_JSON_VALUE, JsonLd.MEDIA_TYPE})
+    public ResponseEntity<?> getSnapshots(@PathVariable String fragment,
+                                          @RequestParam(name = QueryParams.NAMESPACE,
+                                                        required = false) Optional<String> namespace,
+                                          @RequestParam(name = "at", required = false) Optional<String> at) {
+        final URI identifier = resolveIdentifier(namespace.orElse(config.getNamespace().getVocabulary()), fragment);
+        final Vocabulary vocabulary = vocabularyService.getRequiredReference(identifier);
+        if (at.isPresent()) {
+            final Instant instant = RestUtils.parseTimestamp(at.get());
+            return ResponseEntity.ok(vocabularyService.findVersionValidAt(vocabulary, instant));
+        }
+        return ResponseEntity.ok(vocabularyService.findSnapshots(vocabulary));
     }
 }

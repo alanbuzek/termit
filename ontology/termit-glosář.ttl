@@ -114,7 +114,7 @@ termit:glosář  a        owl:Ontology , <http://www.w3.org/2004/02/skos/core#Co
         owl:imports     <http://onto.fel.cvut.cz/ontologies/slovník/agendový/popis-dat/glosář> , <http://rdfs.org/sioc/ns#> , <http://www.w3.org/ns/activitystreams#> ;
         owl:versionIRI  <http://onto.fel.cvut.cz/ontologies/application/termit/glosář/verze/1.1.2> ;
         <http://www.w3.org/2004/02/skos/core#hasTopConcept>
-                termit-pojem:je-selektorem-definice-termu , termit-pojem:přiřazení-termu , termit-pojem:má-cíl , termit-pojem:selektor-definice , termit-pojem:je-přiřazením-termu , termit-pojem:má-suffix-text-quote , termit-pojem:záznam-o-textové-analýze , termit-pojem:má-přesný-text-quote , termit-pojem:selektor , termit-pojem:má-koncovou-pozici , termit-pojem:má-prefix-text-quote , termit-pojem:má-slovník-pro-analýzu , termit-pojem:uživatel-termitu , termit-pojem:cíl , termit-pojem:má-selektor , termit-pojem:má-zdroj-definice-termu , termit-pojem:má-analyzovaný-zdroj , termit-pojem:má-startovní-pozici, termit-pojem:je-draft .
+                termit-pojem:je-selektorem-definice-termu , termit-pojem:přiřazení-termu , termit-pojem:má-cíl , termit-pojem:selektor-definice , termit-pojem:je-přiřazením-termu , termit-pojem:má-suffix-text-quote , termit-pojem:záznam-o-textové-analýze , termit-pojem:má-přesný-text-quote , termit-pojem:selektor , termit-pojem:má-koncovou-pozici , termit-pojem:má-prefix-text-quote , termit-pojem:má-slovník-pro-analýzu , termit-pojem:uživatel-termitu , termit-pojem:cíl , termit-pojem:má-selektor , a-popis-dat-pojem:má-webovou-stránku, a-popis-dat-pojem:webová-stránka, termit-pojem:má-zdroj-definice-termu , termit-pojem:má-analyzovaný-zdroj , termit-pojem:má-startovní-pozici, termit-pojem:má-navrhované-lemma, termit-pojem:je-draft .
 
 termit-pojem:má-koncovou-pozici
         a       <http://www.w3.org/2004/02/skos/core#Concept> ;
@@ -187,6 +187,24 @@ termit-pojem:cíl-souborového-výskytu
                 termit:glosář ;
         <http://www.w3.org/2004/02/skos/core#prefLabel>
                 "File occurrence target"@en , "Cíl souborového výskytu"@cs .
+
+termit-pojem:cíl-webového-výskytu
+        a       <http://www.w3.org/2004/02/skos/core#Concept> ;
+        <http://www.w3.org/2004/02/skos/core#broader>
+                termit-pojem:cíl-výskytu , <https://slovník.gov.cz/základní/pojem/typ-objektu> ;
+        <http://www.w3.org/2004/02/skos/core#inScheme>
+                termit:glosář ;
+        <http://www.w3.org/2004/02/skos/core#prefLabel>
+                "Website occurrence target"@en , "Cíl webového výskytu"@cs .
+
+a-popis-dat-pojem:webová-stránka
+        a       <http://www.w3.org/2004/02/skos/core#Concept> ;
+        <http://www.w3.org/2004/02/skos/core#broader>
+                termit-pojem:cíl-výskytu , <https://slovník.gov.cz/základní/pojem/typ-objektu> ;
+        <http://www.w3.org/2004/02/skos/core#inScheme>
+                termit:glosář ;
+        <http://www.w3.org/2004/02/skos/core#prefLabel>
+                "Website"@en , "Webová stránka"@cs .
 
 termit-pojem:selektor-xpath
         a       <http://www.w3.org/2004/02/skos/core#Concept> ;
@@ -268,6 +286,15 @@ termit-pojem:má-cíl-souborového-výskytu
         <http://www.w3.org/2004/02/skos/core#prefLabel>
                 "has file occurence target"@en , "má cíl souborového výskytu"@cs .
 
+termit-pojem:má-cíl-webového-výskytu
+        a       <http://www.w3.org/2004/02/skos/core#Concept> ;
+        <http://www.w3.org/2004/02/skos/core#broader>
+                termit-pojem:má-cíl-výskytu , <https://slovník.gov.cz/základní/pojem/typ-vztahu> ;
+        <http://www.w3.org/2004/02/skos/core#inScheme>
+                termit:glosář ;
+        <http://www.w3.org/2004/02/skos/core#prefLabel>
+                "has website occurence target"@en , "má cíl webového výskytu"@cs .
+
 termit-pojem:navržený-výskyt-termu
         a       <http://www.w3.org/2004/02/skos/core#Concept> ;
         <http://www.w3.org/2004/02/skos/core#broader>
@@ -292,7 +319,7 @@ termit-pojem:selektor-pozici-v-textu
 termit-pojem:zdroj-definice-termu
         a       <http://www.w3.org/2004/02/skos/core#Concept> ;
         <http://www.w3.org/2004/02/skos/core#broader>
-                termit-pojem:souborový-výskyt-termu , <https://slovník.gov.cz/základní/pojem/typ-objektu> ;
+                termit-pojem:výskyt-termu , <https://slovník.gov.cz/základní/pojem/typ-objektu> ;
         <http://www.w3.org/2004/02/skos/core#inScheme>
                 termit:glosář ;
         <http://www.w3.org/2004/02/skos/core#prefLabel>
@@ -341,6 +368,15 @@ termit-pojem:má-startovní-pozici
                 termit:glosář ;
         <http://www.w3.org/2004/02/skos/core#prefLabel>
                 "Has start position"@en , "Má startovní pozici"@cs .
+
+termit-pojem:má-navrhované-lemma
+        a       <http://www.w3.org/2004/02/skos/core#Concept> ;
+        <http://www.w3.org/2004/02/skos/core#broader>
+                <https://slovník.gov.cz/základní/pojem/vlastnost> , <https://slovník.gov.cz/základní/pojem/typ-vlastnosti> ;
+        <http://www.w3.org/2004/02/skos/core#inScheme>
+                termit:glosář ;
+        <http://www.w3.org/2004/02/skos/core#prefLabel>
+                "Has suggested lemma"@en , "Má navrhované lemma"@cs .
 
 termit-pojem:má-cíl-výskytu
         a       <http://www.w3.org/2004/02/skos/core#Concept> ;
@@ -406,6 +442,15 @@ termit-pojem:má-selektor
                 termit:glosář ;
         <http://www.w3.org/2004/02/skos/core#prefLabel>
                 "má selektor"@cs .
+
+a-popis-dat-pojem:má-webovou-stránku
+        a       <http://www.w3.org/2004/02/skos/core#Concept> ;
+        <http://www.w3.org/2004/02/skos/core#broader>
+                <https://slovník.gov.cz/základní/pojem/vztah> , <https://slovník.gov.cz/základní/pojem/typ-vztahu> ;
+        <http://www.w3.org/2004/02/skos/core#inScheme>
+                termit:glosář ;
+        <http://www.w3.org/2004/02/skos/core#prefLabel>
+                "má webovou stránku"@cs .
 
 termit-pojem:má-analyzovaný-zdroj
         a       <http://www.w3.org/2004/02/skos/core#Concept> ;

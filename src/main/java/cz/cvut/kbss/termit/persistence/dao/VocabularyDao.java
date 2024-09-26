@@ -21,13 +21,16 @@ import cz.cvut.kbss.jopa.vocabulary.SKOS;
 import cz.cvut.kbss.termit.asset.provenance.ModifiesData;
 import cz.cvut.kbss.termit.asset.provenance.SupportsLastModification;
 import cz.cvut.kbss.termit.dto.AggregatedChangeInfo;
+import cz.cvut.kbss.termit.dto.Snapshot;
 import cz.cvut.kbss.termit.event.RefreshLastModifiedEvent;
 import cz.cvut.kbss.termit.exception.PersistenceException;
 import cz.cvut.kbss.termit.model.Glossary;
 import cz.cvut.kbss.termit.model.Vocabulary;
 import cz.cvut.kbss.termit.model.validation.ValidationResult;
 import cz.cvut.kbss.termit.persistence.DescriptorFactory;
+import cz.cvut.kbss.termit.persistence.snapshot.AssetSnapshotLoader;
 import cz.cvut.kbss.termit.persistence.validation.VocabularyContentValidator;
+import cz.cvut.kbss.termit.service.snapshot.SnapshotProvider;
 import cz.cvut.kbss.termit.util.Configuration;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
@@ -36,10 +39,12 @@ import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.net.URI;
+import java.time.Instant;
 import java.util.*;
 
 @Repository
-public class VocabularyDao extends AssetDao<Vocabulary> implements SupportsLastModification {
+public class VocabularyDao extends AssetDao<Vocabulary>
+        implements SnapshotProvider<Vocabulary>, SupportsLastModification {
 
     private static final URI LABEL_PROPERTY = URI.create(DC.Terms.TITLE);
     private static final String CONTENT_CHANGES_QUERY = "SELECT ?date (COUNT(DISTINCT(?t)) as ?cnt) WHERE { " +
@@ -48,7 +53,7 @@ public class VocabularyDao extends AssetDao<Vocabulary> implements SupportsLastM
             "        ?hasTimestamp ?timestamp . " +
             "    ?t ?inVocabulary ?vocabulary . " +
             "    BIND (SUBSTR(STR(?timestamp), 1, 10) as ?date) " +
-            "} GROUP BY ?date ORDER BY ?date";
+            "} GROUP BY ?date HAVING (?cnt > 0) ORDER BY ?date";
 
     private volatile long lastModified;
 
@@ -69,9 +74,19 @@ public class VocabularyDao extends AssetDao<Vocabulary> implements SupportsLastM
 
     @Override
     public List<Vocabulary> findAll() {
-        final List<Vocabulary> result = super.findAll();
-        result.sort(Comparator.comparing(Vocabulary::getLabel));
-        return result;
+        try {
+            return em.createNativeQuery("SELECT DISTINCT ?v WHERE { ?v a ?type ;" +
+                                                "?hasTitle ?title ." +
+                                                "FILTER NOT EXISTS {" +
+                                                "?v a ?snapshot ." +
+                                                "}} ORDER BY ?title", type)
+                     .setParameter("type", typeUri)
+                     .setParameter("hasTitle", URI.create(DC.Terms.TITLE))
+                     .setParameter("snapshot", URI.create(cz.cvut.kbss.termit.util.Vocabulary.s_c_verze_slovniku))
+                     .getResultList();
+        } catch (RuntimeException e) {
+            throw new PersistenceException(e);
+        }
     }
 
     @Override
@@ -151,6 +166,17 @@ public class VocabularyDao extends AssetDao<Vocabulary> implements SupportsLastM
         Objects.requireNonNull(entity);
         try {
             em.persist(entity, descriptorFactory.vocabularyDescriptor(entity));
+        } catch (RuntimeException e) {
+            throw new PersistenceException(e);
+        }
+    }
+
+    @ModifiesData
+    @Override
+    public void remove(Vocabulary entity) {
+        Objects.requireNonNull(entity);
+        try {
+            find(entity.getUri()).ifPresent(em::remove);
         } catch (RuntimeException e) {
             throw new PersistenceException(e);
         }
@@ -277,5 +303,18 @@ public class VocabularyDao extends AssetDao<Vocabulary> implements SupportsLastM
         Objects.requireNonNull(vocabulary);
         return em.createQuery("SELECT DISTINCT COUNT(t) FROM Term t WHERE t.vocabulary = :vocabulary", Integer.class)
                  .setParameter("vocabulary", vocabulary).getSingleResult();
+    }
+
+    @Override
+    public List<Snapshot> findSnapshots(Vocabulary vocabulary) {
+        return new AssetSnapshotLoader<Vocabulary>(em, typeUri, URI.create(
+                cz.cvut.kbss.termit.util.Vocabulary.s_c_verze_slovniku)).findSnapshots(vocabulary);
+    }
+
+    @Override
+    public Optional<Vocabulary> findVersionValidAt(Vocabulary vocabulary, Instant at) {
+        return new AssetSnapshotLoader<Vocabulary>(em, typeUri, URI.create(
+                cz.cvut.kbss.termit.util.Vocabulary.s_c_verze_slovniku))
+                .findVersionValidAt(vocabulary, at);
     }
 }

@@ -8,6 +8,7 @@ import cz.cvut.kbss.termit.dto.assignment.TermOccurrences;
 import cz.cvut.kbss.termit.dto.listing.TermDto;
 import cz.cvut.kbss.termit.environment.Environment;
 import cz.cvut.kbss.termit.environment.Generator;
+import cz.cvut.kbss.termit.exception.NotFoundException;
 import cz.cvut.kbss.termit.model.Term;
 import cz.cvut.kbss.termit.model.Vocabulary;
 import cz.cvut.kbss.termit.model.assignment.FileOccurrenceTarget;
@@ -29,14 +30,16 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigInteger;
 import java.net.URI;
+import java.time.Instant;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static cz.cvut.kbss.termit.environment.Generator.generateTermWithId;
 import static cz.cvut.kbss.termit.environment.Generator.generateVocabulary;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.hasItems;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -74,7 +77,8 @@ class TermServiceTest {
     @Test
     void exportGlossaryGetsGlossaryExportForSpecifiedVocabularyFromExporters() {
         final TypeAwareByteArrayResource resource = new TypeAwareByteArrayResource("test".getBytes(),
-                CsvUtils.MEDIA_TYPE, CsvUtils.FILE_EXTENSION);
+                                                                                   CsvUtils.MEDIA_TYPE,
+                                                                                   CsvUtils.FILE_EXTENSION);
         when(exporters.exportGlossary(vocabulary, CsvUtils.MEDIA_TYPE)).thenReturn(Optional.of(resource));
         final Optional<TypeAwareResource> result = sut.exportGlossary(vocabulary, CsvUtils.MEDIA_TYPE);
         assertTrue(result.isPresent());
@@ -134,7 +138,9 @@ class TermServiceTest {
     void getOccurrenceInfoRetrievesTermOccurrenceInfoFromRepositoryService() {
         final Term term = generateTermWithId();
         final List<TermOccurrences> occurrences = Collections
-                .singletonList(new TermOccurrences(term.getUri(), Generator.generateUri(), "test", BigInteger.valueOf(125L), cz.cvut.kbss.termit.util.Vocabulary.s_c_souborovy_vyskyt_termu, true));
+                .singletonList(
+                        new TermOccurrences(term.getUri(), Generator.generateUri(), "test", BigInteger.valueOf(125L),
+                                            cz.cvut.kbss.termit.util.Vocabulary.s_c_souborovy_vyskyt_termu, true));
         when(termRepositoryService.getOccurrenceInfo(term)).thenReturn(occurrences);
         final List<TermOccurrences> result = sut.getOccurrenceInfo(term);
         assertEquals(occurrences, result);
@@ -239,11 +245,13 @@ class TermServiceTest {
     void findAllRootsIncludingImportsRetrievesRootTermsUsingRepositoryService() {
         final List<TermDto> terms = Collections.singletonList(new TermDto(Generator.generateTermWithId()));
         when(termRepositoryService
-                .findAllRootsIncludingImported(eq(vocabulary), eq(Constants.DEFAULT_PAGE_SPEC), anyCollection()))
+                     .findAllRootsIncludingImported(eq(vocabulary), eq(Constants.DEFAULT_PAGE_SPEC), anyCollection()))
                 .thenReturn(terms);
-        final List<TermDto> result = sut.findAllRootsIncludingImported(vocabulary, Constants.DEFAULT_PAGE_SPEC, Collections.emptyList());
+        final List<TermDto> result = sut.findAllRootsIncludingImported(vocabulary, Constants.DEFAULT_PAGE_SPEC,
+                                                                       Collections.emptyList());
         assertEquals(terms, result);
-        verify(termRepositoryService).findAllRootsIncludingImported(vocabulary, Constants.DEFAULT_PAGE_SPEC, Collections.emptyList());
+        verify(termRepositoryService).findAllRootsIncludingImported(vocabulary, Constants.DEFAULT_PAGE_SPEC,
+                                                                    Collections.emptyList());
     }
 
     @Test
@@ -325,7 +333,9 @@ class TermServiceTest {
     void setTermDefinitionReplacesExistingTermDefinition() {
         final Term term = Generator.generateTermWithId();
         final TermDefinitionSource existingSource = new TermDefinitionSource(term.getUri(),
-                new FileOccurrenceTarget(Generator.generateFileWithId("existing.html")));
+                                                                             new FileOccurrenceTarget(
+                                                                                     Generator.generateFileWithId(
+                                                                                             "existing.html")));
         term.setDefinitionSource(existingSource);
         final TermDefinitionSource definitionSource = new TermDefinitionSource();
         definitionSource.setTarget(new FileOccurrenceTarget(Generator.generateFileWithId("test.html")));
@@ -356,11 +366,13 @@ class TermServiceTest {
         final Comment comment = new Comment();
         comment.setAsset(term.getUri());
         comment.setCreated(Utils.timestamp());
-        when(commentService.findAll(term)).thenReturn(Collections.singletonList(comment));
+        when(commentService.findAll(eq(term), any(Instant.class), any(Instant.class))).thenReturn(Collections.singletonList(comment));
 
-        final List<Comment> result = sut.getComments(term);
+        final Instant from = Constants.EPOCH_TIMESTAMP;
+        final Instant to = Utils.timestamp();
+        final List<Comment> result = sut.getComments(term, from, to);
         assertEquals(Collections.singletonList(comment), result);
-        verify(commentService).findAll(term);
+        verify(commentService).findAll(term, from, to);
     }
 
     @Test
@@ -446,10 +458,13 @@ class TermServiceTest {
     @Test
     void exportGlossaryWithReferencesGetsGlossaryExportWithReferencesForSpecifiedVocabularyFromExporters() {
         final TypeAwareByteArrayResource resource = new TypeAwareByteArrayResource("test".getBytes(),
-                CsvUtils.MEDIA_TYPE, CsvUtils.FILE_EXTENSION);
+                                                                                   CsvUtils.MEDIA_TYPE,
+                                                                                   CsvUtils.FILE_EXTENSION);
         final Collection<String> properties = Collections.singleton(SKOS.EXACT_MATCH);
-        when(exporters.exportGlossaryWithReferences(vocabulary, properties, CsvUtils.MEDIA_TYPE)).thenReturn(Optional.of(resource));
-        final Optional<TypeAwareResource> result = sut.exportGlossaryWithReferences(vocabulary, properties, CsvUtils.MEDIA_TYPE);
+        when(exporters.exportGlossaryWithReferences(vocabulary, properties, CsvUtils.MEDIA_TYPE)).thenReturn(
+                Optional.of(resource));
+        final Optional<TypeAwareResource> result = sut.exportGlossaryWithReferences(vocabulary, properties,
+                                                                                    CsvUtils.MEDIA_TYPE);
         assertTrue(result.isPresent());
         assertEquals(resource, result.get());
         verify(exporters).exportGlossaryWithReferences(vocabulary, properties, CsvUtils.MEDIA_TYPE);
@@ -459,7 +474,9 @@ class TermServiceTest {
     void removeTermDefinitionSourceRemovesOccurrenceRepresentingSourceOfDefinitionOfSpecifiedTerm() {
         final Term term = generateTermWithId();
         final TermDefinitionSource defSource = new TermDefinitionSource(term.getUri(),
-                new FileOccurrenceTarget(Generator.generateFileWithId("test.html")));
+                                                                        new FileOccurrenceTarget(
+                                                                                Generator.generateFileWithId(
+                                                                                        "test.html")));
         defSource.setUri(Generator.generateUri());
         term.setDefinitionSource(defSource);
 
@@ -514,5 +531,46 @@ class TermServiceTest {
         assertEquals(term, result);
         verify(term).consolidateInferred();
         verify(term).consolidateParents();
+    }
+
+    @Test
+    void findSnapshotsRetrievesTermSnapshotsFromRepositoryService() {
+        final Term term = generateTermWithId();
+
+        sut.findSnapshots(term);
+        verify(termRepositoryService).findSnapshots(term);
+    }
+
+    @Test
+    void findVersionValidAtRetrievesValidVersionFromRepositoryService() {
+        final Term term = generateTermWithId();
+        final Instant instant = Instant.now();
+        when(termRepositoryService.findVersionValidAt(term, instant)).thenReturn(Optional.of(term));
+
+        sut.findVersionValidAt(term, instant);
+        verify(termRepositoryService).findVersionValidAt(term, instant);
+    }
+
+    @Test
+    void findVersionValidAtThrowsNotFoundExceptionWhenNoValidVersionExists() {
+        final Term term = generateTermWithId();
+        final Instant instant = Instant.now();
+        when(termRepositoryService.findVersionValidAt(term, instant)).thenReturn(Optional.empty());
+
+        assertThrows(NotFoundException.class, () -> sut.findVersionValidAt(term, instant));
+    }
+
+    @Test
+    void findVersionValidAtConsolidatesAttributeOnLoadedInstance() {
+        final Term term = generateTermWithId();
+        final Instant instant = Instant.now();
+        final TermInfo related = Generator.generateTermInfoWithId();
+        final TermInfo inverseRelated = Generator.generateTermInfoWithId();
+        term.addRelatedTerm((related));
+        term.setInverseRelated(Collections.singleton(inverseRelated));
+        when(termRepositoryService.findVersionValidAt(term, instant)).thenReturn(Optional.of(term));
+
+        final Term result = sut.findVersionValidAt(term, instant);
+        assertThat(result.getRelated(), hasItems(related, inverseRelated));
     }
 }

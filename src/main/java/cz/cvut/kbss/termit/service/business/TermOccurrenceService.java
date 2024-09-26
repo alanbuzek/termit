@@ -1,8 +1,15 @@
 package cz.cvut.kbss.termit.service.business;
 
+import cz.cvut.kbss.termit.dto.TermOccurrenceDTO;
 import cz.cvut.kbss.termit.model.assignment.TermOccurrence;
+import cz.cvut.kbss.termit.model.assignment.TermWebsiteOccurrence;
+import cz.cvut.kbss.termit.model.resource.Resource;
+import cz.cvut.kbss.termit.model.resource.Website;
+import cz.cvut.kbss.termit.util.Configuration;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.net.URI;
+import java.util.List;
 
 /**
  * Business service for managing {@link TermOccurrence}s.
@@ -19,6 +26,9 @@ public interface TermOccurrenceService {
      * @throws cz.cvut.kbss.termit.exception.NotFoundException If there is no such term occurrence
      */
     TermOccurrence getRequiredReference(URI id);
+
+    @Transactional
+    TermOccurrence find(URI id);
 
     /**
      * Persists the specified term occurrence.
@@ -42,4 +52,16 @@ public interface TermOccurrenceService {
      * @param occurrence Occurrence to remove
      */
     void remove(TermOccurrence occurrence);
+
+    List<TermOccurrence> getAllOccurrencesInResource(Resource resource);
+
+
+    @Transactional
+    void removeAllInWebsite(Website website);
+
+    @Transactional
+    void removeAllSuggestionsInWebsite(Website website);
+
+    List<TermWebsiteOccurrence> createWebOccurrences(List<TermOccurrenceDTO> termOccurrenceDTOs, Website website,
+                                              String contextIri, Configuration.Namespace cfgNamespace);
 }

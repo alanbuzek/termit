@@ -1,17 +1,32 @@
 package cz.cvut.kbss.termit.rest;
 
+import cz.cvut.kbss.jsonld.JsonLd;
+import cz.cvut.kbss.termit.dto.TermOccurrenceDTO;
+import cz.cvut.kbss.termit.exception.ValidationException;
+import cz.cvut.kbss.termit.model.assignment.TermOccurrence;
+import cz.cvut.kbss.termit.model.assignment.TermWebsiteOccurrence;
+import cz.cvut.kbss.termit.model.resource.Resource;
+import cz.cvut.kbss.termit.model.resource.Website;
 import cz.cvut.kbss.termit.security.SecurityConstants;
 import cz.cvut.kbss.termit.service.IdentifierResolver;
+import cz.cvut.kbss.termit.service.business.ResourceService;
 import cz.cvut.kbss.termit.service.business.TermOccurrenceService;
 import cz.cvut.kbss.termit.util.Configuration;
 import cz.cvut.kbss.termit.util.Constants;
+import cz.cvut.kbss.termit.util.CsvUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.net.URI;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping(TermOccurrenceController.PATH)
@@ -26,22 +41,38 @@ public class TermOccurrenceController extends BaseController {
 
 
     private final TermOccurrenceService occurrenceService;
+    private final ResourceService resourceService;
+    protected final IdentifierResolver idResolver;
+
 
     public TermOccurrenceController(IdentifierResolver idResolver, Configuration config,
-                                    TermOccurrenceService occurrenceService) {
+                                    TermOccurrenceService occurrenceService,
+                                    ResourceService resourceService,
+                                    IdentifierResolver idResolver1) {
         super(idResolver, config);
         this.occurrenceService = occurrenceService;
+        this.resourceService = resourceService;
+        this.idResolver = idResolver1;
     }
 
     @PutMapping(value = "/{normalizedName}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @PreAuthorize("hasRole('" + SecurityConstants.ROLE_FULL_USER + "')")
     public void approveOccurrence(@PathVariable String normalizedName,
-                                  @RequestParam(name = Constants.QueryParams.NAMESPACE) String namespace) {
-        final URI identifier = idResolver.resolveIdentifier(namespace, normalizedName);
-
-        occurrenceService.approve(occurrenceService.getRequiredReference(identifier));
-        LOG.debug("Occurrence with identifier <{}> approved.", identifier);
+                                  @RequestParam String occurrenceNamespace,
+                                  @RequestParam String termNamespace,
+                                  @RequestParam(required = false) Optional<String> termFragment)
+             {
+        final URI termOccurrenceIdentifier = idResolver.resolveIdentifier(occurrenceNamespace, normalizedName);
+        TermOccurrence termOccurrence = occurrenceService.find(termOccurrenceIdentifier);
+        if (termFragment.isPresent()){
+            final URI termUri = idResolver.resolveIdentifier(termNamespace, termFragment.get());
+            termOccurrence.setTerm(termUri);
+        } else if (termFragment.isEmpty() && termOccurrence.getTerm() == null) {
+            throw new ValidationException("Cannot approve a term occurrence without specifying what term it belongs to!");
+        }
+        occurrenceService.approve(termOccurrence);
+        LOG.debug("Occurrence with identifier <{}> approved.", termOccurrenceIdentifier);
     }
 
     @DeleteMapping(value = "/{normalizedName}")
@@ -52,5 +83,35 @@ public class TermOccurrenceController extends BaseController {
         final URI identifier = idResolver.resolveIdentifier(namespace, normalizedName);
         occurrenceService.remove(occurrenceService.getRequiredReference(identifier));
         LOG.debug("Occurrence with identifier <{}> removed.", identifier);
+    }
+
+    @PostMapping(value = "/web", consumes = {MediaType.APPLICATION_JSON_VALUE, JsonLd.MEDIA_TYPE})
+    @PreAuthorize("hasRole('" + SecurityConstants.ROLE_FULL_USER + "')")
+    public List<TermWebsiteOccurrence> createWebOccurrences(
+                                 @RequestParam String websiteNamespace,
+                                 @RequestParam String websiteFragment,
+                             @RequestParam(value = "contextIri", required = false) String contextIri,
+                                 @RequestBody List<TermOccurrenceDTO> termOccurrenceDTOs
+    ) {
+        final Configuration.Namespace cfgNamespace = config.getNamespace();
+
+        final URI websiteIdentifier =  idResolver.resolveIdentifier(websiteNamespace, websiteFragment);
+        final Website website = (Website) resourceService.findRequired(websiteIdentifier);
+
+        return occurrenceService.createWebOccurrences(termOccurrenceDTOs, website, contextIri, cfgNamespace);
+    }
+
+    @GetMapping(value = "/resources/{resourceFragment}",
+                produces = {MediaType.APPLICATION_JSON_VALUE,
+                            JsonLd.MEDIA_TYPE,
+                            CsvUtils.MEDIA_TYPE,
+                            Constants.Excel.MEDIA_TYPE,
+                            Constants.Turtle.MEDIA_TYPE})
+    public List<TermOccurrence> getAllInResource(@RequestParam(name = Constants.QueryParams.NAMESPACE) String namespace,
+                                                 @PathVariable String resourceFragment){
+
+        final URI websiteIdentifier = idResolver.resolveIdentifier(namespace, resourceFragment);
+        final Resource resource = resourceService.findRequired(websiteIdentifier);
+        return occurrenceService.getAllOccurrencesInResource(resource);
     }
 }

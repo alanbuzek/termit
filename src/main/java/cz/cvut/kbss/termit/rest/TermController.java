@@ -7,21 +7,23 @@ import cz.cvut.kbss.termit.exception.NotFoundException;
 import cz.cvut.kbss.termit.exception.TermItException;
 import cz.cvut.kbss.termit.model.Term;
 import cz.cvut.kbss.termit.model.Vocabulary;
+import cz.cvut.kbss.termit.model.assignment.FileOccurrenceTarget;
 import cz.cvut.kbss.termit.model.assignment.TermDefinitionSource;
+import cz.cvut.kbss.termit.model.assignment.TermFileOccurrence;
 import cz.cvut.kbss.termit.model.assignment.TermOccurrence;
 import cz.cvut.kbss.termit.model.changetracking.AbstractChangeRecord;
 import cz.cvut.kbss.termit.model.comment.Comment;
+import cz.cvut.kbss.termit.model.resource.File;
+import cz.cvut.kbss.termit.model.resource.Resource;
 import cz.cvut.kbss.termit.rest.util.RestUtils;
 import cz.cvut.kbss.termit.security.SecurityConstants;
 import cz.cvut.kbss.termit.service.IdentifierResolver;
+import cz.cvut.kbss.termit.service.business.ResourceService;
 import cz.cvut.kbss.termit.service.business.TermService;
-import cz.cvut.kbss.termit.util.Configuration;
-import cz.cvut.kbss.termit.util.Constants;
+import cz.cvut.kbss.termit.util.*;
 import cz.cvut.kbss.termit.util.Constants.Excel;
 import cz.cvut.kbss.termit.util.Constants.QueryParams;
 import cz.cvut.kbss.termit.util.Constants.Turtle;
-import cz.cvut.kbss.termit.util.CsvUtils;
-import cz.cvut.kbss.termit.util.TypeAwareResource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -34,6 +36,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
 import java.net.URI;
+import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -46,11 +49,14 @@ public class TermController extends BaseController {
     private static final Logger LOG = LoggerFactory.getLogger(TermController.class);
 
     private final TermService termService;
+    private final ResourceService resourceService;
 
     @Autowired
-    public TermController(IdentifierResolver idResolver, Configuration config, TermService termService) {
+    public TermController(IdentifierResolver idResolver, Configuration config, TermService termService,
+                          ResourceService resourceService) {
         super(idResolver, config);
         this.termService = termService;
+        this.resourceService = resourceService;
     }
 
     private URI getVocabularyUri(Optional<String> namespace, String fragment) {
@@ -438,26 +444,36 @@ public class TermController extends BaseController {
     }
 
     @PutMapping(value = "/terms/{termIdFragment}/definition-source",
-                consumes = {JsonLd.MEDIA_TYPE, MediaType.APPLICATION_JSON_VALUE})
-    @ResponseStatus(HttpStatus.NO_CONTENT)
+                consumes = {JsonLd.MEDIA_TYPE, MediaType.APPLICATION_JSON_VALUE}, produces = {JsonLd.MEDIA_TYPE, MediaType.APPLICATION_JSON_VALUE})
     @PreAuthorize("hasRole('" + SecurityConstants.ROLE_FULL_USER + "')")
-    public void setTermDefinitionSource(@PathVariable String termIdFragment,
+    public TermDefinitionSource setTermDefinitionSource(@PathVariable String termIdFragment,
                                         @RequestParam(name = QueryParams.NAMESPACE) String namespace,
                                         @RequestBody TermDefinitionSource definitionSource) {
         final URI termUri = idResolver.resolveIdentifier(namespace, termIdFragment);
         termService.setTermDefinitionSource(termService.getRequiredReference(termUri), definitionSource);
         LOG.debug("Definition source of term {} set to {}.", termUri, definitionSource);
+        return definitionSource;
     }
 
     @DeleteMapping(value = "/terms/{termIdFragment}/definition-source")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @PreAuthorize("hasRole('" + SecurityConstants.ROLE_FULL_USER + "')")
-    public void setTermDefinitionSource(@PathVariable String termIdFragment,
+    public void removeTermDefinitionSource(@PathVariable String termIdFragment,
                                         @RequestParam(name = QueryParams.NAMESPACE) String namespace) {
         final URI termUri = idResolver.resolveIdentifier(namespace, termIdFragment);
         final Term term = termService.findRequired(termUri);
         termService.removeTermDefinitionSource(term);
         LOG.debug("Definition source of term {} removed.", term);
+    }
+
+
+    @PostMapping(value = "/terms/definition-source",
+                consumes = {JsonLd.MEDIA_TYPE, MediaType.APPLICATION_JSON_VALUE}, produces = {JsonLd.MEDIA_TYPE, MediaType.APPLICATION_JSON_VALUE})
+    @PreAuthorize("hasRole('" + SecurityConstants.ROLE_FULL_USER + "')")
+    public TermDefinitionSource setUnassignedDefinitionSource(@RequestBody TermDefinitionSource definitionSource) {
+        termService.setUnassignedDefinitionSource(definitionSource);
+        LOG.debug("Definition source of unknown term set to {}.", definitionSource);
+        return definitionSource;
     }
 
     @PutMapping(value = "terms/{termIdFragment}/status", consumes = MediaType.ALL_VALUE)
@@ -507,25 +523,33 @@ public class TermController extends BaseController {
                 produces = {MediaType.APPLICATION_JSON_VALUE, JsonLd.MEDIA_TYPE})
     public List<Comment> getComments(@PathVariable("vocabularyIdFragment") String vocabularyIdFragment,
                                      @PathVariable("termIdFragment") String termIdFragment,
+                                     @RequestParam(name = "from", required = false) Optional<String> from,
+                                     @RequestParam(name = "to", required = false) Optional<String> to,
                                      @RequestParam(name = QueryParams.NAMESPACE,
                                                    required = false) Optional<String> namespace) {
         final URI termUri = getTermUri(vocabularyIdFragment, termIdFragment, namespace);
-        return termService.getComments(termService.getRequiredReference(termUri));
+        return termService.getComments(termService.getRequiredReference(termUri),
+                                       from.map(RestUtils::parseTimestamp).orElse(Constants.EPOCH_TIMESTAMP),
+                                       to.map(RestUtils::parseTimestamp).orElse(Utils.timestamp()));
     }
 
     /**
      * Gets comments for the specified term.
      * <p>
-     * This is a convenience method to allow access without using the Term's parent Vocabulary.
+     * This is method allows access without using the Term's Vocabulary.
      *
-     * @see #getComments(String, String, Optional)
+     * @see #getComments(String, String, Optional, Optional, Optional)
      */
     @GetMapping(value = "/terms/{termIdFragment}/comments",
                 produces = {MediaType.APPLICATION_JSON_VALUE, JsonLd.MEDIA_TYPE})
     public List<Comment> getComments(@PathVariable("termIdFragment") String termIdFragment,
-                                     @RequestParam(name = QueryParams.NAMESPACE, required = false) String namespace) {
+                                     @RequestParam(name = "from", required = false) Optional<String> from,
+                                     @RequestParam(name = "to", required = false) Optional<String> to,
+                                     @RequestParam(name = QueryParams.NAMESPACE) String namespace) {
         final URI termUri = idResolver.resolveIdentifier(namespace, termIdFragment);
-        return termService.getComments(termService.getRequiredReference(termUri));
+        return termService.getComments(termService.getRequiredReference(termUri),
+                                       from.map(RestUtils::parseTimestamp).orElse(Constants.EPOCH_TIMESTAMP),
+                                       to.map(RestUtils::parseTimestamp).orElse(Utils.timestamp()));
     }
 
     /**
@@ -576,6 +600,19 @@ public class TermController extends BaseController {
                                                                                                 IdentifierResolver.extractIdentifierFragment(
                                                                                                         comment.getUri())))
                              .build();
+    }
+
+    @GetMapping(value = "/terms/{termIdFragment}/versions",
+                produces = {MediaType.APPLICATION_JSON_VALUE, JsonLd.MEDIA_TYPE})
+    public ResponseEntity<?> getSnapshots(@PathVariable String termIdFragment,
+                                          @RequestParam(name = QueryParams.NAMESPACE) String namespace,
+                                          @RequestParam(name = "at", required = false) Optional<String> at) {
+        final Term term = termService.getRequiredReference(idResolver.resolveIdentifier(namespace, termIdFragment));
+        if (at.isPresent()) {
+            final Instant instant = RestUtils.parseTimestamp(at.get());
+            return ResponseEntity.ok(termService.findVersionValidAt(term, instant));
+        }
+        return ResponseEntity.ok(termService.findSnapshots(term));
     }
 
     /**

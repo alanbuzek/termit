@@ -21,6 +21,7 @@ import cz.cvut.kbss.termit.model.AbstractTerm;
 import cz.cvut.kbss.termit.model.Asset;
 import cz.cvut.kbss.termit.model.assignment.*;
 import cz.cvut.kbss.termit.model.resource.File;
+import cz.cvut.kbss.termit.model.resource.Website;
 import cz.cvut.kbss.termit.service.repository.TermRepositoryService;
 
 import java.io.InputStream;
@@ -92,6 +93,9 @@ public abstract class TermOccurrenceResolver {
         } else if (source instanceof AbstractTerm) {
             final DefinitionalOccurrenceTarget target = new DefinitionalOccurrenceTarget((AbstractTerm) source);
             occurrence = new TermDefinitionalOccurrence(termUri, target);
+        } else if (source instanceof Website){
+            final WebsiteOccurrenceTarget target = new WebsiteOccurrenceTarget((Website) source);
+            occurrence = new TermWebsiteOccurrence(termUri, target);
         } else {
             throw new IllegalArgumentException("Unsupported term occurrence source " + source);
         }

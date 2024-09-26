@@ -1,5 +1,7 @@
 package cz.cvut.kbss.termit.service.business.readonly;
 
+import cz.cvut.kbss.jopa.vocabulary.DC;
+import cz.cvut.kbss.termit.dto.Snapshot;
 import cz.cvut.kbss.termit.dto.TermInfo;
 import cz.cvut.kbss.termit.dto.listing.TermDto;
 import cz.cvut.kbss.termit.dto.readonly.ReadOnlyTerm;
@@ -10,6 +12,7 @@ import cz.cvut.kbss.termit.model.assignment.TermOccurrence;
 import cz.cvut.kbss.termit.model.comment.Comment;
 import cz.cvut.kbss.termit.service.business.TermService;
 import cz.cvut.kbss.termit.util.Configuration;
+import cz.cvut.kbss.termit.util.Constants;
 import cz.cvut.kbss.termit.util.Utils;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -20,12 +23,17 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 
+import java.time.Instant;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static cz.cvut.kbss.termit.environment.Environment.termsToDtos;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.hasEntry;
+import static org.hamcrest.Matchers.not;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.*;
@@ -150,11 +158,13 @@ class ReadOnlyTermServiceTest {
         final Comment comment = new Comment();
         comment.setAsset(term.getUri());
         comment.setCreated(Utils.timestamp());
-        when(termService.getComments(term)).thenReturn(Collections.singletonList(comment));
+        when(termService.getComments(eq(term), any(Instant.class), any(Instant.class))).thenReturn(Collections.singletonList(comment));
+        final Instant from = Constants.EPOCH_TIMESTAMP;
+        final Instant to = Utils.timestamp();
 
-        final List<Comment> result = sut.getComments(term);
+        final List<Comment> result = sut.getComments(term, from, to);
         assertEquals(Collections.singletonList(comment), result);
-        verify(termService).getComments(term);
+        verify(termService).getComments(term, from, to);
     }
 
     @Test
@@ -187,5 +197,51 @@ class ReadOnlyTermServiceTest {
         final List<TermOccurrence> result = sut.getDefinitionallyRelatedTargeting(term);
         assertEquals(occurrences, result);
         verify(termService).getDefinitionallyRelatedTargeting(term);
+    }
+
+    @Test
+    void findSnapshotsRetrievesSnapshotsOfSpecifiedTerm() {
+        final Term term = Generator.generateTermWithId();
+        final ReadOnlyTerm asset = new ReadOnlyTerm(term);
+        final List<Snapshot> snapshots = IntStream.range(0, 3).mapToObj(i -> Generator.generateSnapshot(term))
+                                                  .collect(Collectors.toList());
+        when(termService.findSnapshots(term)).thenReturn(snapshots);
+
+        final List<Snapshot> result = sut.findSnapshots(asset);
+        assertEquals(snapshots, result);
+        verify(termService).findSnapshots(term);
+    }
+
+    @Test
+    void findVersionValidAtRetrievesTermVersionsValidAtSpecifiedTimestamp() {
+        when(configuration.getPublicView()).thenReturn(new Configuration.PublicView());
+        final Term term = Generator.generateTermWithId();
+        final ReadOnlyTerm asset = new ReadOnlyTerm(term);
+        final Term version = Generator.generateTermWithId();
+        final Instant timestamp = Instant.now();
+        when(termService.findVersionValidAt(term, timestamp)).thenReturn(version);
+
+        final ReadOnlyTerm result = sut.findVersionValidAt(asset, timestamp);
+        assertEquals(new ReadOnlyTerm(version), result);
+        verify(termService).findVersionValidAt(term, timestamp);
+    }
+
+    @Test
+    void findVersionAtReturnsReadOnlyTermWithWhitelistedProperties() {
+        final Term term = Generator.generateTermWithId();
+        term.setProperties(new HashMap<>());
+        term.getProperties().put(DC.Terms.REFERENCES, Collections.singleton(Generator.generateUri().toString()));
+        // This one is not whitelisted, so it will not be exported
+        term.getProperties().put(DC.Elements.DATE, Collections.singleton(Instant.now().toString()));
+        final Configuration.PublicView whitelistedProps = new Configuration.PublicView();
+        whitelistedProps.setWhiteListProperties(Collections.singleton(DC.Terms.REFERENCES));
+        when(configuration.getPublicView()).thenReturn(whitelistedProps);
+        final Instant timestamp = Instant.now();
+        when(termService.findVersionValidAt(term, timestamp)).thenReturn(term);
+
+        final ReadOnlyTerm result = sut.findVersionValidAt(new ReadOnlyTerm(term), timestamp);
+        assertThat(result.getProperties(), hasEntry(DC.Terms.REFERENCES, term.getProperties()
+                                                                             .get(DC.Terms.REFERENCES)));
+        assertThat(result.getProperties(), not(hasEntry(DC.Elements.DATE, term.getProperties().get(DC.Elements.DATE))));
     }
 }
